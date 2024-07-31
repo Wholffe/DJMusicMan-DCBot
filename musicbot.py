@@ -2,20 +2,23 @@ import discord
 import yt_dlp
 from discord.ext import commands
 
-FFMPEG_OPTIONS = {'options': '-vn'}
+FFMPEG_OPTIONS = {
+    'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
+    'options': '-vn -b:a 192k -bufsize 64k'
+}
+
 YDL_OPTIONS = {
     'format': 'bestaudio/best',
     'noplaylist': True,
     'default_search': 'ytsearch'
 }
 
-
 class MusicBot(commands.Cog):
 
   def __init__(self, bot):
     self.client = bot
     self.queue = []
-
+  
   @commands.command()
   async def play(self, ctx, *, search):
     try:
