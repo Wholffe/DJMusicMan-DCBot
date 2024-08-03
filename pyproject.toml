@@ -10,6 +10,7 @@ discord-py = "^2.4.0"
 yt-dlp = "^2024.7.25"
 ffmpeg-asyncio = "0.1.3"
 python-dotenv = "^1.0.1"
+flask = "^3.0.3"
 
 [tool.pyright]
 # https://github.com/microsoft/pyright/blob/main/docs/configuration.md

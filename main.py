@@ -6,6 +6,7 @@ from discord.ext import commands
 from dotenv import load_dotenv
 
 from musicbot import MusicBot
+from server import keep_jamming
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -24,4 +25,5 @@ async def main():
 
 
 if __name__ == "__main__":
+  keep_jamming()
   asyncio.run(main())
