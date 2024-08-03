@@ -1,4 +1,3 @@
-from functools import partial
 
 import discord
 import yt_dlp
