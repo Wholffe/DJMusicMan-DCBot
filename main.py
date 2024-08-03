@@ -1,9 +1,9 @@
 import asyncio
 import os
-from dotenv import load_dotenv
 
 import discord
 from discord.ext import commands
+from dotenv import load_dotenv
 
 from musicbot import MusicBot
 
@@ -18,6 +18,8 @@ async def main():
   await client.add_cog(MusicBot(client))
   load_dotenv()
   DISCORD_TOKEN = os.getenv('DISCORD_TOKEN')
+  if DISCORD_TOKEN is None:
+    raise ValueError("DISCORD_TOKEN environment variable not set.")
   await client.start(DISCORD_TOKEN)
 
 
