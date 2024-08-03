@@ -2,7 +2,7 @@
 
 ## Description
 
-DC Music Bot is a simple Discord bot designed for playing music in voice channels. It leverages `yt-dlp` to fetch audio streams from YouTube and `FFmpeg` to play the audio in Discord. The bot supports basic music control commands such as playing, skipping, and queue management, making it easy to enjoy music with friends directly in your Discord server.
+DJ Music Man is a simple Discord bot designed for playing music in voice channels. It leverages `yt-dlp` to fetch audio streams from YouTube and `FFmpeg` to play the audio in Discord. The bot supports basic music control commands such as playing, skipping, and queue management, making it easy to enjoy music with friends directly in your Discord server.
 
 ## Requirements
 
@@ -41,4 +41,4 @@ Contributions to this repository are welcome! If you have additional ideas or im
 
 ## License
 
-This repository is licensed under the MIT License.
+This repository is licensed under the [MIT License](../LICENSE).

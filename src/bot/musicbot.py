@@ -40,7 +40,8 @@ class MusicBot(commands.Cog):
                        '/ping - Ping the bot\n'
                        '/play <search> - Play a song from YouTube\n'
                        '/showq - Show the current queue\n'
-                       '/skip - Skip the current song\n')
+                       '/skip - Skip the current song\n'
+                       '/toggle - Toggle pause|continue playback\n')
 
     @commands.command()
     async def clear(self, ctx):
@@ -58,5 +59,12 @@ class MusicBot(commands.Cog):
             await ctx.send("The queue is empty.")
             return
         for i, song in enumerate(self.queue):
-          queue_list += f"{i+1}. {song[1]}\n"
-          await ctx.send(f"Queue:\n{queue_list}")
+            queue_list += f"{i+1}. {song[1]}\n"
+            await ctx.send(f"Queue:\n{queue_list}")
+
+    @commands.command()
+    async def toggle(self, ctx):
+        if ctx.voice_client.is_playing():
+            await ctx.voice_client.pause()
+        else:
+            await ctx.voice_client.resume()
