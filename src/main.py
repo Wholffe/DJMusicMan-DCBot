@@ -2,10 +2,9 @@ import asyncio
 import os
 
 import discord
+from bot.musicbot import MusicBot
 from discord.ext import commands
 from dotenv import load_dotenv
-
-from musicbot import MusicBot
 from server import keep_jamming
 
 intents = discord.Intents.default()

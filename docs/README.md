@@ -1,4 +1,4 @@
-# DC Music Bot
+# DJ Music Man - The Discord Music Bot
 
 ## Description
 
@@ -25,12 +25,12 @@ DC Music Bot is a simple Discord bot designed for playing music in voice channel
     ```
 3. **Set Up Environment Variables**
    - **Create a `.env` file in the root directory**:
-     ```plaintext
-     DISCORD_TOKEN=your-discord-token
-     ```
-   - Make sure to replace `your-discord-token` with your actual Discord bot token.
+   ```plaintext
+   DISCORD_TOKEN=your-discord-token
+   ```
+-  Make sure to replace `your-discord-token` with your actual Discord bot token.
 
-4. **Run the Bot**
+4. **Run the Bot in root dir**
    ```bash
     python main.py
    ```
