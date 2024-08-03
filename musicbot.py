@@ -46,33 +46,37 @@ class MusicBot(commands.Cog):
     except Exception as e:
       await ctx.send(f"An error occurred while playing the song: {str(e)}")
 
+  async def join_voice_channel(self, ctx):
+    voice_channel = ctx.author.voice.channel if ctx.author.voice else None
+    if not voice_channel:
+      return await ctx.send("You are not connected to a voice channel.")
+
+    if not ctx.voice_client:
+      await voice_channel.connect()
+
+  async def add_to_queue(self, ctx, search):
+    async with ctx.typing():
+      info = await self.get_info(search)
+      if not info:
+        return await ctx.send("Failed to retrieve the video information.")
+
+      if isinstance(info, dict) and 'entries' in info:
+        info = info['entries'][0]
+
+      if 'url' not in info or 'title' not in info:
+        return await ctx.send("Failed to retrieve the video URL or title.")
+
+      url, title = info['url'], info['title']
+      self.queue.append((url, title))
+      await ctx.send(f"Added to queue: {title}")
+
   @commands.command()
   async def play(self, ctx, *, search):
     try:
-      voice_channel = ctx.author.voice.channel if ctx.author.voice else None
-      if not voice_channel:
-        return await ctx.send("You are not connected to a voice channel.")
-
-      if not ctx.voice_client:
-        await voice_channel.connect()
-
-      async with ctx.typing():
-        info = await self.get_info(search)
-        if not info:
-          return await ctx.send("Failed to retrieve the video information.")
-
-        if isinstance(info, dict) and 'entries' in info:
-          info = info['entries'][0]
-
-        if 'url' not in info or 'title' not in info:
-          return await ctx.send("Failed to retrieve the video URL or title.")
-
-        url, title = info['url'], info['title']
-        self.queue.append((url, title))
-        await ctx.send(f"Added to queue: {title}")
-
-        if not ctx.voice_client.is_playing():
-          await self.play_next(ctx)
+      await self.join_voice_channel(ctx)
+      await self.add_to_queue(ctx, search)
+      if not ctx.voice_client.is_playing():
+        await self.play_next(ctx)
     except Exception as e:
       await ctx.send(f"An error occurred: {str(e)}")
 
