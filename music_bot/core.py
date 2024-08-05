@@ -1,6 +1,6 @@
 from discord.ext import commands
 
-from .musicbot_utils import add_to_queue, join_voice_channel, play_next
+from .utils import add_to_queue, join_voice_channel, play_next
 
 
 class MusicBot(commands.Cog):

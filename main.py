@@ -1,18 +1,16 @@
 import asyncio
 import os
-
 import discord
-from bot.musicbot import MusicBot
 from discord.ext import commands
 from dotenv import load_dotenv
-from server import keep_jamming
+
+from music_bot.core import MusicBot
 
 intents = discord.Intents.default()
 intents.message_content = True
 intents.voice_states = True
 
 client = commands.Bot(command_prefix='/', intents=intents)
-
 
 async def main():
   await client.add_cog(MusicBot(client))
@@ -24,5 +22,4 @@ async def main():
 
 
 if __name__ == "__main__":
-  keep_jamming()
   asyncio.run(main())

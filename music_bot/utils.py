@@ -1,4 +1,3 @@
-
 import discord
 import yt_dlp
 

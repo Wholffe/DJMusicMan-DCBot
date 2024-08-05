@@ -15,6 +15,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY .env .
-COPY src/ ./src/
+COPY music_bot .
+COPY main .
 
-CMD ["python", "src/main.py"]
+CMD ["python", "main.py"]
