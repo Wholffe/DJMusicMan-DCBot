@@ -14,7 +14,7 @@ async def get_info(search):
         return None
 
 
-async def play_next(ctx, queue, client):
+async def play_next(ctx, queue, client) -> None:
     try:
         if queue:
             url, title = queue.pop(0)
@@ -30,7 +30,7 @@ async def play_next(ctx, queue, client):
         await ctx.send(f"An error occurred while playing the song: {str(e)}")
 
 
-async def join_voice_channel(ctx):
+async def join_voice_channel(ctx) -> None:
     voice_channel = ctx.author.voice.channel if ctx.author.voice else None
     if not voice_channel:
         return await ctx.send("You are not connected to a voice channel.")
@@ -38,7 +38,7 @@ async def join_voice_channel(ctx):
         await voice_channel.connect()
 
 
-async def add_to_queue(ctx, search, queue):
+async def add_to_queue(ctx, search, queue) -> None:
     async with ctx.typing():
         info = await get_info(search)
         if not info:

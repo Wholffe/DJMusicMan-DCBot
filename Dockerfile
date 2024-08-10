@@ -4,18 +4,12 @@ WORKDIR /app
 
 RUN python -m pip install --upgrade pip
 
-RUN apt-get update && \
-    apt-get install -y \
-    ca-certificates \
-    libssl-dev \
-    curl && \
-    rm -rf /var/lib/apt/lists/*
-
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY .env .
-COPY music_bot .
-COPY main .
+COPY music_bot/ /app/music_bot/
+COPY main.py /app/
+
+RUN apt-get update && apt-get install -y ffmpeg
 
 CMD ["python", "main.py"]

@@ -1,0 +1,14 @@
+version: '3.9'
+
+services:
+  djmusicman:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: djmusicman
+    env_file:
+      - .env
+    volumes:
+      - ./music_bot:/app/music_bot
+      - ./main.py:/app/main.py
+    restart: unless-stopped

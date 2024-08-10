@@ -8,32 +8,49 @@ DJ Music Man is a simple Discord bot designed for playing music in voice channel
 
 - Python 3.8 or higher
 - A Discord bot token
-- `yt-dlp` for extracting audio from YouTube
 - `FFmpeg` for audio streaming
-- `discord.py` for interacting with Discord API
 - `PyNaCl` for voice support
 
 ## Download and Installation
-
-1. **Clone the Repository**
+1. **Clone the Repository and Navigate to the Repository Directory**
    ```bash
    git clone https://github.com/Wholffe/DCMusicBot.git
    ```
-2. **Install the Dependencies**
-    ```bash
-    pip install -r requirements.txt
-    ```
-3. **Set Up Environment Variables**
-   - **Create a `.env` file in the root directory**:
+
+2. **Set Up Environment Variables**
+   - Create a `.env` file in the root directory:
    ```plaintext
    DISCORD_TOKEN=your-discord-token
    ```
--  Make sure to replace `your-discord-token` with your actual Discord bot token.
+   - Make sure to replace `your-discord-token` with your actual Discord bot token.
+
+### Installation via Docker
+   Ensure Docker is Installed on your machine. Download and install [Docker](https://www.docker.com/)
+
+3. **Build the Docker Image with the docker-compose file**
+   ```bash
+   docker-compose up --build -d
+   ```
+
+Note: **Rebuild the Image and Restart the Container**
+   - After making changes to your code or configuration, it's important to stop and remove the existing containers, rebuild the Docker image to incorporate these changes, and restart the container to ensure the latest version is running.
+   ```bash
+   docker-compose down; docker-compose up --build -d
+   ```
+
+### Installation Without Docker
+
+3. **Install the Dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
 
 4. **Run the Bot in root dir**
    ```bash
     python main.py
    ```
+
+###
 
 ## Contribution
 

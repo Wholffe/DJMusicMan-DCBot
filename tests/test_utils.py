@@ -3,7 +3,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import asyncio
 
 import sys
-
 sys.path.append("..")
 
 from music_bot.config import FFMPEG_OPTIONS

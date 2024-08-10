@@ -10,7 +10,7 @@ class MusicBot(commands.Cog):
         self.queue = []
 
     @commands.command()
-    async def play(self, ctx, *, search):
+    async def play(self, ctx, *, search) -> None:
         try:
             await join_voice_channel(ctx)
             await add_to_queue(ctx, search, self.queue)
@@ -20,7 +20,7 @@ class MusicBot(commands.Cog):
             await ctx.send(f"An error occurred: {str(e)}")
 
     @commands.command()
-    async def skip(self, ctx):
+    async def skip(self, ctx) -> None:
         try:
             if ctx.voice_client and ctx.voice_client.is_playing():
                 ctx.voice_client.stop()
@@ -30,11 +30,11 @@ class MusicBot(commands.Cog):
                 f"An error occurred while skipping the song: {str(e)}")
 
     @commands.command()
-    async def ping(self, ctx):
+    async def ping(self, ctx) -> None:
         await ctx.send('pong')
 
     @commands.command()
-    async def djhelp(self, ctx):
+    async def djhelp(self, ctx) -> None:
         await ctx.send('Available commands:\n'
                        '/clear - Clear the current queue\n'
                        '/ping - Ping the bot\n'
@@ -44,7 +44,7 @@ class MusicBot(commands.Cog):
                        '/toggle - Toggle pause|continue playback\n')
 
     @commands.command()
-    async def clear(self, ctx):
+    async def clear(self, ctx) -> None:
         try:
             self.queue.clear()
             await ctx.send("Queue cleared.")
@@ -53,7 +53,7 @@ class MusicBot(commands.Cog):
                 f"An error occurred while clearing the queue: {str(e)}")
 
     @commands.command()
-    async def showq(self, ctx):
+    async def showq(self, ctx) -> None:
         queue_list = ''
         if not self.queue:
             await ctx.send("The queue is empty.")
@@ -63,7 +63,7 @@ class MusicBot(commands.Cog):
             await ctx.send(f"Queue:\n{queue_list}")
 
     @commands.command()
-    async def toggle(self, ctx):
+    async def toggle(self, ctx) -> None:
         if ctx.voice_client.is_playing():
             await ctx.voice_client.pause()
         else:
