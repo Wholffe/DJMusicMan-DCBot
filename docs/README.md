@@ -34,9 +34,12 @@ DJ Music Man is a simple Discord bot designed for playing music in voice channel
 
 Note: **Rebuild the Image and Restart the Container**
    - After making changes to your code or configuration, it's important to stop and remove the existing containers, rebuild the Docker image to incorporate these changes, and restart the container to ensure the latest version is running.
-   ```bash
-   docker-compose down; docker-compose up --build -d
-   ```
+
+   Update local Docker Container
+   - Linux
+     - [update-local-docker-containers](../scripts/linux/update-local-docker-container.sh).
+   - Windows
+     - [update-local-docker-container](../scripts/windows/update-local-docker-container.ps1).
 
 ### Installation Without Docker
 
