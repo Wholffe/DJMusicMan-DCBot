@@ -5,11 +5,8 @@
 DJ Music Man is a simple Discord bot designed for playing music in voice channels. It leverages `yt-dlp` to fetch audio streams from YouTube and `FFmpeg` to play the audio in Discord. The bot supports basic music control commands such as playing, skipping, and queue management, making it easy to enjoy music with friends directly in your Discord server.
 
 ## Requirements
-
-- Python 3.8 or higher
-- A Discord bot token
-- `FFmpeg` for audio streaming
-- `PyNaCl` for voice support
+- A Discord bot token [Creating a discord bot & getting a token](https://github.com/reactiflux/discord-irc/wiki/Creating-a-discord-bot-&-getting-a-token)
+- Docker (recommended) [Docker's official website](https://www.docker.com/).
 
 ## Download and Installation
 1. **Clone the Repository and Navigate to the Repository Directory**
@@ -24,24 +21,29 @@ DJ Music Man is a simple Discord bot designed for playing music in voice channel
    ```
    - Make sure to replace `your-discord-token` with your actual Discord bot token.
 
-### Installation via Docker
-   Ensure Docker is Installed on your machine. Download and install [Docker](https://www.docker.com/)
+### Installation via Docker (recommended)
+3. **Execute Docker Run Script**
 
-3. **Build the Docker Image with the docker-compose file**
-   ```bash
-   docker-compose up --build -d
-   ```
+   - ***Linux***
+     - Run the script located at [start-and-update-djmusicman.sh](../scripts/linux/start-and-update-djmusicman.sh).
 
-Note: **Rebuild the Image and Restart the Container**
-   - After making changes to your code or configuration, it's important to stop and remove the existing containers, rebuild the Docker image to incorporate these changes, and restart the container to ensure the latest version is running.
+   - ***Windows***
+     - Run the script located at [start-and-update-djmusicman.ps1](../scripts/windows/start-and-update-djmusicman.ps1).
 
-   Update local Docker Container
-   - Linux
-     - [update-local-docker-containers](../scripts/linux/update-local-docker-container.sh).
-   - Windows
-     - [update-local-docker-container](../scripts/windows/update-local-docker-container.ps1).
+   ***Note: Alternative Manual Container Run***
+
+   - Manually start the Docker container from the root directory using the `.env` file:
+   
+     ```bash
+     docker run -d --name djmusicman --env-file .env --restart unless-stopped "djmusicman"
+     ```
+
+### OR
 
 ### Installation Without Docker
+   - Additional requirements for local run:
+      - Python 3.8 or higher
+      - `FFmpeg` for audio streaming
 
 3. **Install the Dependencies**
    ```bash
@@ -50,11 +52,9 @@ Note: **Rebuild the Image and Restart the Container**
 
 4. **Run the Bot in root dir**
    ```bash
-    python main.py
+   python main.py
    ```
-
-###
-
+   
 ## Contribution
 
 Contributions to this repository are welcome! If you have additional ideas or improvements, feel free to submit pull requests.
