@@ -60,7 +60,7 @@ class MusicBot(commands.Cog):
             return
         for i, song in enumerate(self.queue):
             queue_list += f"{i+1}. {song[1]}\n"
-            await ctx.send(f"Queue:\n{queue_list}")
+        await ctx.send(f"Queue:\n{queue_list}")
 
     @commands.command()
     async def toggle(self, ctx) -> None:

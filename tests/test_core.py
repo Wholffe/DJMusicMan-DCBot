@@ -67,7 +67,6 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
 
         await self.musicbot.showq(self.musicbot, self.ctx)
         
-        self.ctx.send.assert_any_call("Queue:\n1. title1\n")
         self.ctx.send.assert_any_call("Queue:\n1. title1\n2. title2\n")
 
     async def test_toggle_command_pause(self):
