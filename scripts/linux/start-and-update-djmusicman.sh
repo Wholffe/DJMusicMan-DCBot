@@ -1,5 +1,5 @@
 # === ADJUST THIS: Define the current project path ===
-PROJECT_PATH="$HOME/DJMusicMan-DCBot"
+PROJECT_PATH="$HOME/DJMusicMan"
 
 
 DOCKER_IMAGE_NAME="djmusicman"

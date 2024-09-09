@@ -8,6 +8,8 @@ async def get_info(search):
     try:
         with yt_dlp.YoutubeDL(YDL_OPTIONS) as ydl:
             info = ydl.extract_info(search, download=False)
+        if 'entries' in info:
+            info = info['entries'][0]
         return info
     except Exception as e:
         print(f"Error fetching video information: {str(e)}")
@@ -15,19 +17,21 @@ async def get_info(search):
 
 
 async def play_next(ctx, queue, client) -> None:
-    try:
-        if queue:
-            url, title = queue.pop(0)
-            source = await discord.FFmpegOpusAudio.from_probe(
-                url, **FFMPEG_OPTIONS)
-            ctx.voice_client.play(source,
-                                  after=lambda _: client.loop.create_task(
-                                      play_next(ctx, queue, client)))
-            await ctx.send(f"Now playing: {title}")
-        elif not ctx.voice_client.is_playing():
+    if not queue:
+        if not ctx.voice_client.is_playing():
             await ctx.send("Queue is empty. Use /play to add songs.")
+        return
+
+    url, title = queue.pop(0)
+    try:
+        source = await discord.FFmpegOpusAudio.from_probe(url, **FFMPEG_OPTIONS)
+        ctx.voice_client.play(
+            source,
+            after=lambda _: client.loop.create_task(play_next(ctx, queue, client))
+        )
+        await ctx.send(f"Now playing: {title}")
     except Exception as e:
-        await ctx.send(f"An error occurred while playing the song: {str(e)}")
+        await handle_error(ctx, "playing the song", e)
 
 
 async def join_voice_channel(ctx) -> None:
@@ -41,12 +45,16 @@ async def join_voice_channel(ctx) -> None:
 async def add_to_queue(ctx, search, queue) -> None:
     async with ctx.typing():
         info = await get_info(search)
-        if not info:
+        if not info or 'url' not in info or 'title' not in info:
             return await ctx.send("Failed to retrieve the video information.")
-        if isinstance(info, dict) and 'entries' in info:
-            info = info['entries'][0]
-        if not ('url' in info or 'title' in info):
-            return await ctx.send("Failed to retrieve the video URL or title.")
         url, title = info['url'], info['title']
         queue.append((url, title))
         await ctx.send(f"Added to queue: {title}")
+
+
+async def handle_error(ctx, action: str, error: Exception) -> None:
+    await ctx.send(f"An error occurred while {action}: {str(error)}")
+
+
+async def is_playing(ctx) -> bool:
+    return ctx.voice_client and ctx.voice_client.is_playing()

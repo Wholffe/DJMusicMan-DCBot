@@ -6,7 +6,7 @@ import sys
 sys.path.append("..")
 
 from music_bot.config import FFMPEG_OPTIONS
-from music_bot.utils import add_to_queue, get_info, join_voice_channel, play_next
+from music_bot.utils import *
 
 
 class TestMusicBotUtils(unittest.TestCase):
