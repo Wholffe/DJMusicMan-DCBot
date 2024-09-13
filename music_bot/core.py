@@ -11,8 +11,11 @@ class MusicBot(commands.Cog):
     @commands.command()
     async def play(self, ctx, *, search) -> None:
         try:
-            await join_voice_channel(ctx)
-            await add_to_queue(ctx, search, self.queue)
+            if not await join_voice_channel(ctx):
+                return
+            if not await add_to_queue(ctx, search, self.queue):
+                return
+            
             if not await is_playing(ctx):
                 await play_next(ctx, self.queue, self.client)
         except Exception as e:

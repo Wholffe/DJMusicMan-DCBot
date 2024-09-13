@@ -34,22 +34,26 @@ async def play_next(ctx, queue, client) -> None:
         await handle_error(ctx, "playing the song", e)
 
 
-async def join_voice_channel(ctx) -> None:
+async def join_voice_channel(ctx) -> bool:
     voice_channel = ctx.author.voice.channel if ctx.author.voice else None
     if not voice_channel:
-        return await ctx.send("You are not connected to a voice channel.")
+        await ctx.send("You are not connected to a voice channel.")
+        return
     if not ctx.voice_client:
         await voice_channel.connect()
+        return True
 
 
-async def add_to_queue(ctx, search, queue) -> None:
+async def add_to_queue(ctx, search, queue) -> bool:
     async with ctx.typing():
         info = await get_info(search)
         if not info or 'url' not in info or 'title' not in info:
-            return await ctx.send("Failed to retrieve the video information.")
+            await ctx.send("Failed to retrieve the video information.")
+            return
         url, title = info['url'], info['title']
         queue.append((url, title))
         await ctx.send(f"Added to queue: {title}")
+        return True
 
 
 async def handle_error(ctx, action: str, error: Exception) -> None:

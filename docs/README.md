@@ -11,7 +11,7 @@ DJ Music Man is a simple Discord bot designed for playing music in voice channel
 ## Download and Installation
 1. **Clone the Repository and Navigate to the Repository Directory**
    ```bash
-   git clone https://github.com/Wholffe/DCMusicBot.git
+   git clone https://github.com/Wholffe/DJMusicMan-DCBot.git
    ```
 
 2. **Set Up Environment Variables**
