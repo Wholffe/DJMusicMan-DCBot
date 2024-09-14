@@ -1,5 +1,7 @@
 from discord.ext import commands
+
 from .utils import play_next, join_voice_channel, add_to_queue, handle_error, is_playing
+from music_bot import constants as CONST
 
 
 class MusicBot(commands.Cog):
@@ -11,54 +13,42 @@ class MusicBot(commands.Cog):
     @commands.command()
     async def play(self, ctx, *, search) -> None:
         try:
-            if not await join_voice_channel(ctx):
+            if (not await join_voice_channel(ctx) or not await add_to_queue(ctx, search, self.queue)):
                 return
-            if not await add_to_queue(ctx, search, self.queue):
-                return
-            
             if not await is_playing(ctx):
                 await play_next(ctx, self.queue, self.client)
         except Exception as e:
-            await handle_error(ctx, "playing the song", e)
+            await handle_error(ctx, CONST.ACTION_PLAYING_SONG, e)
 
     @commands.command()
     async def skip(self, ctx) -> None:
         try:
             if await is_playing(ctx):
                 ctx.voice_client.stop()
-                await ctx.send("Skipped the current song.")
+                await ctx.send(CONST.MESSAGE_SKIPPED_SONG)
         except Exception as e:
-            await handle_error(ctx, "skipping the song", e)
+            await handle_error(ctx, CONST.ACTION_SKIPPING_SONG, e)
 
     @commands.command()
     async def ping(self, ctx) -> None:
-        await ctx.send('pong')
+        await ctx.send(CONST.MESSAGE_PONG)
 
     @commands.command()
     async def djhelp(self, ctx) -> None:
-        help_message = (
-            'Available commands:\n'
-            '/clear - Clear the current queue\n'
-            '/ping - Ping the bot\n'
-            '/play <search> - Play a song from YouTube\n'
-            '/showq - Show the current queue\n'
-            '/skip - Skip the current song\n'
-            '/toggle - Toggle pause|continue playback\n'
-        )
-        await ctx.send(help_message)
+        await ctx.send(CONST.MESSAGE_HELP)
 
     @commands.command()
     async def clear(self, ctx) -> None:
         try:
             self.queue.clear()
-            await ctx.send("Queue cleared.")
+            await ctx.send(CONST.MESSEGE_QUEUE_CLEARED)
         except Exception as e:
-            await handle_error(ctx, "clearing the queue", e)
+            await handle_error(ctx, CONST.ACTION_CLEARING_QUEUE, e)
 
     @commands.command()
     async def showq(self, ctx) -> None:
         if not self.queue:
-            await ctx.send("The queue is empty.")
+            await ctx.send(CONST.MESSAGE_QUEUE_EMPTY)
             return
         queue_list = ""
         for i, song in enumerate(self.queue):
