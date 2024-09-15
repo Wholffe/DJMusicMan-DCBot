@@ -1,13 +1,13 @@
 import discord
 import yt_dlp
 
-from .config import FFMPEG_OPTIONS, YDL_OPTIONS
+from .config import FFMPEG_OPTIONS, YDLP_OPTIONS
 from music_bot import constants as CONST
 
 
 async def get_info(ctx, search):
     try:
-        with yt_dlp.YoutubeDL(YDL_OPTIONS) as ydl:
+        with yt_dlp.YoutubeDL(YDLP_OPTIONS) as ydl:
             info = ydl.extract_info(search, download=False)
         if 'entries' in info:
             info = info['entries'][0]
