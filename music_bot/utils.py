@@ -59,7 +59,6 @@ async def play_next(ctx, queue, client) -> None:
     except Exception as e:
         await handle_error(ctx, CONST.ACTION_PLAYING_SONG, e)
 
-
 async def join_voice_channel(ctx) -> bool:
     voice_channel = ctx.author.voice.channel if ctx.author.voice else None
     if not voice_channel:
@@ -68,7 +67,6 @@ async def join_voice_channel(ctx) -> bool:
     if not ctx.voice_client:
         await voice_channel.connect()
     return True
-
 
 async def add_to_queue(ctx, search, queue) -> bool:
     async with ctx.typing():
@@ -81,10 +79,59 @@ async def add_to_queue(ctx, search, queue) -> bool:
         await ctx.send(f"Added to queue: {title}")
         return True
 
-
 async def handle_error(ctx, action: str, error: Exception) -> None:
     await ctx.send(f"An error occurred while {action}: {str(error)}")
 
-
 async def is_playing(ctx) -> bool:
     return ctx.voice_client and ctx.voice_client.is_playing()
+
+
+
+async def cm_play(self, ctx, search):
+    try:
+        if (not await join_voice_channel(ctx) or not await add_to_queue(ctx, search, self.queue)):
+            return
+        if not await is_playing(ctx):
+            await play_next(ctx, self.queue, self.client)
+    except Exception as e:
+        await handle_error(ctx, CONST.ACTION_PLAYING_SONG, e)
+
+async def cm_skip(ctx):
+    try:
+        if await is_playing(ctx):
+            ctx.voice_client.stop()
+            await ctx.send(CONST.MESSAGE_SKIPPED_SONG)
+    except Exception as e:
+        await handle_error(ctx, CONST.ACTION_SKIPPING_SONG, e)
+
+async def cm_ping(ctx):
+    await ctx.send(CONST.MESSAGE_PONG)
+
+async def cm_djhelp(ctx):
+    await ctx.send(CONST.MESSAGE_HELP)
+
+async def cm_clear(self, ctx):
+    try:
+        self.queue.clear()
+        await ctx.send(CONST.MESSEGE_QUEUE_CLEARED)
+    except Exception as e:
+        await handle_error(ctx, CONST.ACTION_CLEARING_QUEUE, e)
+
+async def cm_showq(self, ctx):
+    if not self.queue:
+        await ctx.send(CONST.MESSAGE_QUEUE_EMPTY)
+        return
+    queue_list = ''
+    for i, song in enumerate(self.queue):
+        queue_list += f"{i+1}. {song[1]}\n"
+    await ctx.send(f"Queue:\n{queue_list}")
+
+async def cm_toggle(ctx):
+    if await is_playing(ctx):
+        await ctx.voice_client.pause()
+    else:
+        await ctx.voice_client.resume()
+
+async def cm_leave(ctx):
+    if ctx.voice_client:
+        await ctx.voice_client.disconnect()
