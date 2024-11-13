@@ -50,7 +50,7 @@ class MusicBot(commands.Cog):
         if not self.queue:
             await ctx.send(CONST.MESSAGE_QUEUE_EMPTY)
             return
-        queue_list = ""
+        queue_list = ''
         for i, song in enumerate(self.queue):
             queue_list += f"{i+1}. {song[1]}\n"
         await ctx.send(f"Queue:\n{queue_list}")
@@ -61,3 +61,8 @@ class MusicBot(commands.Cog):
             await ctx.voice_client.pause()
         else:
             await ctx.voice_client.resume()
+    
+    @commands.command()
+    async def leave(self, ctx) -> None:
+        if ctx.voice_client:
+            await ctx.voice_client.disconnect()

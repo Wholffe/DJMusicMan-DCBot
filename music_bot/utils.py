@@ -1,9 +1,14 @@
 import discord
 import yt_dlp
+import asyncio
 
 from .config import FFMPEG_OPTIONS, YDLP_OPTIONS
 from music_bot import constants as CONST
 
+
+idle_timer = 0
+max_duration_timeout = 10
+timer_task = None
 
 async def get_info(ctx, search):
     try:
@@ -15,13 +20,35 @@ async def get_info(ctx, search):
     except Exception as e:
         handle_error(ctx, CONST.ACTION_FETCHING_VIDEO_INFOS, e)
 
+async def start_idle_timer(ctx):
+    global idle_timer, max_duration_timeout
+    idle_timer = 0
+
+    while ctx.voice_client and idle_timer < max_duration_timeout:
+        await asyncio.sleep(1)
+        if ctx.voice_client.is_playing():
+            return
+        idle_timer += 1
+
+    if ctx.voice_client:    
+        await ctx.send(CONST.MESSAGE_NO_ACTIVITY_TIMEOUT)
+        await ctx.voice_client.disconnect()
+
 async def play_next(ctx, queue, client) -> None:
+    global idle_timer, timer_task
+
     if not queue:
-        if not ctx.voice_client.is_playing():
-            await ctx.send(CONST.MESSAGE_QUEUE_EMPTY_USE_PLAY)
+        if ctx.voice_client and not ctx.voice_client.is_playing() and not timer_task:
+            timer_task = asyncio.create_task(start_idle_timer(ctx))
+        await ctx.send(CONST.MESSAGE_QUEUE_EMPTY_USE_PLAY)
         return
 
     url, title = queue.pop(0)
+    idle_timer = 0
+    if timer_task:
+        timer_task.cancel()
+        timer_task = None
+
     try:
         source = await discord.FFmpegOpusAudio.from_probe(url, **FFMPEG_OPTIONS)
         ctx.voice_client.play(
