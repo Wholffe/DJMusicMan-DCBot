@@ -56,7 +56,7 @@ class TestMusicBotUtils(unittest.TestCase):
         search = "test search"
         mock_get_info.return_value = {"url": "test_url", "title": "test_title"}
 
-        await add_to_queue(ctx, search, queue)
+        await queue_add(ctx, search, queue)
 
         self.assertEqual(len(queue), 1)
         self.assertEqual(queue[0], ("test_url", "test_title"))

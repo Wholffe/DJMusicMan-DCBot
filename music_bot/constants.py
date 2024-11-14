@@ -5,6 +5,7 @@ MESSAGE_FAILED_VIDEO_INFO: Final = 'Failed to retrieve the video information.'
 MESSAGE_HELP: Final = (
     'Available commands:\n'
     '/clear - Clear the current queue\n'
+    '/leave - Leave the voice channel'
     '/ping - Ping the bot\n'
     '/play <search> - Play a song from YouTube\n'
     '/showq - Show the current queue\n'
@@ -17,7 +18,7 @@ MESSAGE_QUEUE_EMPTY: Final = 'The queue is empty.'
 MESSAGE_QUEUE_EMPTY_USE_PLAY: Final = 'Queue is empty. Use /play to add songs.'
 MESSAGE_SKIPPED_SONG: Final = 'Skipped the current song.'
 MESSEGE_QUEUE_CLEARED: Final = 'Queue cleared.'
-MESSAGE_NO_ACTIVITY_TIMEOUT: Final = 'Bot has been idle for too long. Leaving the voice channel'
+MESSAGE_NO_ACTIVITY_TIMEOUT: Final = 'Bot idle for too long. Leaving the voice channel.'
 
 #region Acrions
 ACTION_PLAYING_SONG: Final = 'playing the song'
