@@ -11,23 +11,24 @@ max_duration_timeout = 180
 timer_task = None
 
 
-async def cm_clear(musicbot, ctx):
+async def cm_clear(musicbot, ctx) -> None:
     try:
         musicbot.queue.clear()
+        send_message(ctx,CONST.MESSAGE_QUEUE_CLEARED)
     except Exception as e:
-        await send_error(ctx, CONST.ACTION_CLEARING_QUEUE, e)
+        await send_error(ctx,CONST.ACTION_CLEARING_QUEUE, e)
 
-async def cm_djhelp(ctx):
+async def cm_djhelp(ctx) -> None:
     await send_message(ctx,CONST.MESSAGE_HELP)
 
-async def cm_leave(ctx):
+async def cm_leave(ctx) -> None:
     if ctx.voice_client:
         await ctx.voice_client.disconnect()
 
-async def cm_ping(ctx):
+async def cm_ping(ctx) -> None:
     await send_message(ctx,CONST.MESSAGE_PONG)
 
-async def cm_play(musicbot, ctx, search):
+async def cm_play(musicbot, ctx, search) -> None:
     try:
         if (not await join_voice_channel(ctx) or not await queue_add(ctx, search, musicbot.queue)):
             return
@@ -36,15 +37,16 @@ async def cm_play(musicbot, ctx, search):
     except Exception as e:
         await send_error(ctx, CONST.ACTION_PLAYING_SONG, e)
 
-async def cm_showq(musicbot, ctx):
+async def cm_showq(musicbot, ctx) -> None:
     if not musicbot.queue:
+        await send_message(ctx,CONST.MESSAGE_QUEUE_EMPTY)
         return
     queue_list = ''
     for i, song in enumerate(musicbot.queue):
         queue_list += f'{i+1}. {song[1]}\n'
     await send_message(ctx,f'Queue:\n{queue_list}')
 
-async def cm_skip(ctx):
+async def cm_skip(ctx) -> None:
     try:
         if await is_playing(ctx):
             ctx.voice_client.stop()
@@ -52,7 +54,7 @@ async def cm_skip(ctx):
     except Exception as e:
         await send_error(ctx,CONST.ACTION_SKIPPING_SONG, e)
 
-async def cm_toggle(ctx):
+async def cm_toggle(ctx) -> None:
     if await is_playing(ctx):
         await ctx.voice_client.pause()
     else:
@@ -122,7 +124,7 @@ async def send_error(ctx, action: str, error: Exception) -> None:
 async def send_message(ctx, text: str) -> None:
     await ctx.send(text)
 
-async def start_idle_timer(ctx):
+async def start_idle_timer(ctx) -> None:
     global idle_timer, max_duration_timeout
     idle_timer = 0
 
