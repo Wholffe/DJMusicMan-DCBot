@@ -23,7 +23,7 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         self.ctx.author.voice.channel = MagicMock()
         self.ctx.voice_client = MagicMock()
         self.ctx.voice_client.disconnect = AsyncMock()
-        self.ctx.voice_client.stop = AsyncMock()
+        self.ctx.voice_client.stop = MagicMock()
         self.ctx.voice_client.pause = AsyncMock()
         self.ctx.voice_client.resume = AsyncMock()
         self.ctx.voice_client.is_playing = MagicMock(return_value=True)
@@ -87,7 +87,7 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         command = self.bot.get_command('showq')
         await command(self.ctx)
 
-        self.ctx.send.assert_called_once_with('Queue:\n1. title1\n2. title2\n')
+        self.ctx.send.assert_called_once_with('Queue:\n1. title1\n2. title2')
 
     async def test_toggle_command_pause(self):
         self.ctx.voice_client.is_playing.return_value = True
