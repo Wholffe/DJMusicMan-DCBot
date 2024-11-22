@@ -9,5 +9,4 @@ YDLP_OPTIONS = {
     'default_search': 'ytsearch',
     'quiet': False,
     'skip_download': True,
-    'extract_flat': True,
 }
