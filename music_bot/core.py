@@ -1,13 +1,13 @@
 from discord.ext import commands
 
 from .utils import cm_clear,cm_djhelp,cm_leave,cm_ping,cm_play,cm_showq,cm_skip,cm_toggle
+from .music_queue import MusicQueue
 
 
 class MusicBot(commands.Cog):
-
     def __init__(self, bot):
         self.client = bot
-        self.queue = []
+        self.queue = MusicQueue()
 
     @commands.command()
     async def play(self, ctx, *, search) -> None:
