@@ -15,7 +15,7 @@ def error_handling(func):
         try:
             await func(ctx, *args, **kwargs)
         except Exception as e:
-            await ctx.send(f"An error occurred while executing the command: {e}")
+            await message_handler.send_error(ctx,f'An error occurred while executing the command: {e}')
     return wrapper
 
 async def get_info(search: str) -> dict:
@@ -120,9 +120,9 @@ async def cm_leave(ctx):
 @error_handling
 async def cm_toggle(ctx):
     if await is_playing(ctx):
-        ctx.voice_client.pause()
+        await ctx.voice_client.pause()
     else:
-        ctx.voice_client.resume()
+        await ctx.voice_client.resume()
 
 @error_handling
 async def cm_djhelp(ctx) -> None:

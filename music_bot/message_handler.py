@@ -4,7 +4,7 @@ class MessageHandler:
     def __init__(self):
         self.prefix_success = "✅"
         self.prefix_error = "❌"
-        self.prefix_info = "i"
+        self.prefix_info = ""
 
     async def send_success(self, ctx, message: str):
         await ctx.send(f"{self.prefix_success} {message}")
