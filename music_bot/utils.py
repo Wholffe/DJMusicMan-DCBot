@@ -1,13 +1,15 @@
 import discord
 import yt_dlp
-import asyncio
 
 from .config import YDLP_OPTIONS,FFMPEG_OPTIONS
 from music_bot import constants as CONST
 from .message_handler import MessageHandler
 from .music_queue import MusicQueue
+from .idle_timer import IdleTimer
+
 
 message_handler = MessageHandler()
+idle_timer = IdleTimer()
 
 def error_handling(func):
     """Decorator to handle exceptions in commands."""
@@ -39,12 +41,12 @@ async def is_playing(ctx) -> bool:
 
 async def play_next(ctx, queue: MusicQueue, client):
     if queue.is_empty():
-        await handle_idle(ctx)
+        await idle_timer.handle_idle(ctx)
         return
 
     song = queue.get_next_song()
     if not song:
-        await handle_idle(ctx)
+        await idle_timer.handle_idle(ctx)
         return
 
     url, title = song
@@ -54,27 +56,6 @@ async def play_next(ctx, queue: MusicQueue, client):
         after=lambda _: client.loop.create_task(play_next(ctx, queue, client))
     )
     await message_handler.send_success(ctx, f'Now playing: {title}')
-
-async def handle_idle(ctx):
-    """Handles the bot's behavior when the queue is empty."""
-    global timer_task
-    if not timer_task:
-        timer_task = asyncio.create_task(start_idle_timer(ctx))
-    await message_handler.send_info(ctx, CONST.MESSAGE_QUEUE_EMPTY_USE_PLAY)
-
-async def start_idle_timer(ctx):
-    """Starts an idle timer to disconnect the bot after inactivity."""
-    global idle_timer, max_duration_timeout
-    idle_timer = 0
-
-    while ctx.voice_client and idle_timer < max_duration_timeout:
-        await asyncio.sleep(1)
-        if ctx.voice_client.is_playing():
-            return
-        idle_timer += 1
-
-    await ctx.voice_client.disconnect()
-    await message_handler.send_info(ctx, CONST.MESSAGE_NO_ACTIVITY_TIMEOUT)
 
 @error_handling
 async def cm_play(musicbot, ctx, search):

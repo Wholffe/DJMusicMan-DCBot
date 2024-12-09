@@ -1,5 +1,6 @@
 from typing import Final
 
+
 #region Messages
 MESSAGE_FAILED_VIDEO_INFO: Final = 'Failed to retrieve the video information.'
 MESSAGE_HELP: Final = (

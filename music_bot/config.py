@@ -10,3 +10,6 @@ YDLP_OPTIONS = {
     'quiet': False,
     'skip_download': True,
 }
+IDLE_TIMER = {
+  'max_duration_timeout':180 #time in sec
+}
