@@ -40,12 +40,8 @@ async def is_playing(ctx) -> bool:
     return ctx.voice_client and ctx.voice_client.is_playing()
 
 async def play_next(ctx, queue: MusicQueue, client):
-    if queue.is_empty():
-        await idle_timer.handle_idle(ctx)
-        return
-
     song = queue.get_next_song()
-    if not song:
+    if queue.is_empty() and (not song):
         await idle_timer.handle_idle(ctx)
         return
 
