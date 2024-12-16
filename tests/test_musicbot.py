@@ -8,6 +8,7 @@ import music_bot.constants as CONST
 from music_bot.core import MusicBot
 from music_bot.message_handler import MessageHandler
 from music_bot.music_queue import MusicQueue
+from music_bot.idle_timer import IdleTimer
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -19,6 +20,7 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         self.bot = commands.Bot(command_prefix='/', intents=intents)
         self.musicbot = MusicBot(self.bot)
         self.message_handler = MessageHandler()
+        self.idle_timer = IdleTimer()
         await self.bot.add_cog(self.musicbot)
 
         self.ctx = MagicMock()
@@ -131,6 +133,26 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         await command(self.ctx)
 
         self.ctx.voice_client.disconnect.assert_called_once()
+
+    @patch('music_bot.idle_timer.asyncio.sleep', new_callable=AsyncMock)
+    async def test_idle_timer_disconnects_after_timeout(self, mock_sleep):
+        self.idle_timer.max_duration_timeout = 3
+        self.ctx.voice_client.is_playing.return_value = False
+
+        await self.idle_timer.start_idle_timer(self.ctx)
+
+        self.ctx.voice_client.disconnect.assert_called_once()
+        self.ctx.send.assert_called_once_with(f'{self.message_handler.prefix_info} {CONST.MESSAGE_NO_ACTIVITY_TIMEOUT}')
+
+    @patch('music_bot.idle_timer.asyncio.sleep', new_callable=AsyncMock)
+    async def test_idle_timer_resets_if_music_plays(self, mock_sleep):
+        self.idle_timer.max_duration_timeout = 3
+        self.ctx.voice_client.is_playing.side_effect = [False, True]
+
+        await self.idle_timer.start_idle_timer(self.ctx)
+
+        self.ctx.voice_client.disconnect.assert_not_called()
+        self.ctx.send.assert_not_called()
 
 if __name__ == '__main__':
     unittest.main()

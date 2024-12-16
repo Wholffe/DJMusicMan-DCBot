@@ -8,7 +8,7 @@ from .message_handler import MessageHandler
 class IdleTimer:
     def __init__(self):
         self.message_handler = MessageHandler()
-        self.idle_timer = 0
+        self.current_timer = 0
         self.max_duration_timeout = IDLE_TIMER.get('max_duration_timeout')
         self.timer_task = None
 
@@ -18,17 +18,22 @@ class IdleTimer:
             self.timer_task = asyncio.create_task(self.start_idle_timer(ctx))
         await self.message_handler.send_info(ctx, CONST.MESSAGE_QUEUE_EMPTY_USE_PLAY)
 
-    async def start_idle_timer(self,ctx):
+    async def start_idle_timer(self, ctx):
         """Starts an idle timer to disconnect the bot after inactivity."""
-        self.idle_timer = 0
+        self.current_timer = 0
 
-        while ctx.voice_client and (self.idle_timer <= self.max_duration_timeout):
+        while ctx.voice_client and (self.current_timer <= self.max_duration_timeout):
             await asyncio.sleep(1)
-            if ctx.voice_client.is_playing():
+            if ctx.voice_client and ctx.voice_client.is_playing():
                 self.timer_task = None
                 return
-            self.idle_timer += 1
+            self.current_timer += 1
 
-        await ctx.voice_client.disconnect()
-        await self.message_handler.send_info(ctx, CONST.MESSAGE_NO_ACTIVITY_TIMEOUT)
+        if ctx.voice_client:
+            await ctx.voice_client.disconnect()
+            await self.message_handler.send_info(ctx, CONST.MESSAGE_NO_ACTIVITY_TIMEOUT)
+        
+        self.timer_task = None
+    
+    def clear_timer_task(self):
         self.timer_task = None

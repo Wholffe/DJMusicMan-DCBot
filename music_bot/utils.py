@@ -45,6 +45,7 @@ async def play_next(ctx, queue: MusicQueue, client):
         await idle_timer.handle_idle(ctx)
         return
 
+    idle_timer.clear_timer_task()
     url, title = song
     source = await discord.FFmpegOpusAudio.from_probe(url, **FFMPEG_OPTIONS)
     ctx.voice_client.play(
