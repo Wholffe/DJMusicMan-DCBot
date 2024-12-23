@@ -20,12 +20,26 @@ def error_handling(func):
             await message_handler.send_error(ctx,f'An error occurred while executing the command: {e}')
     return wrapper
 
-async def get_info(search: str) -> dict:
+async def get_song_infos(search: str) -> list:
+    """
+    Args:
+        search (str): The search query or URL to retrieve information from.
+
+    Returns:
+        list: A list of dictionaries, each containing details about a song (url:str,title:str):
+    """
     with yt_dlp.YoutubeDL(YDLP_OPTIONS) as ydl:
         info = ydl.extract_info(search, download=False)
-    if 'entries' in info:
-        info = info['entries'][0]
-    return {'url': info.get('url'), 'title': info.get('title')}
+    entries = info.get('entries') if 'entries' in info and isinstance(info['entries'], list) else [info]
+    
+    songs = [
+        {
+            'url': entry.get('url'),
+            'title': entry.get('title'),
+        }
+        for entry in entries if entry
+    ]
+    return songs
 
 async def join_voice_channel(ctx) -> bool:
     voice_channel = ctx.author.voice.channel if ctx.author.voice else None
@@ -59,13 +73,16 @@ async def cm_play(musicbot, ctx, search):
     if not await join_voice_channel(ctx):
         return
 
-    info = await get_info(search)
-    if 'error' in info:
-        await message_handler.send_error(ctx, f"Error: {info['error']}")
-        return
+    async with ctx.typing():
+        songs = await get_song_infos(search)
 
-    musicbot.queue.add_song(info['url'], info['title'])
-    await message_handler.send_success(ctx, f"Added to queue: {info['title']}")
+    for song in songs:
+        musicbot.queue.add_song(song['url'], song['title'])
+
+    if len(songs) > 1:
+        await message_handler.send_success(ctx, f"Added {len(songs)} songs to the queue.")
+    else:
+        await message_handler.send_success(ctx, f"Added to queue: {songs[0]['title']}")
 
     if not await is_playing(ctx):
         await play_next(ctx, musicbot.queue, musicbot.client)

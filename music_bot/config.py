@@ -9,7 +9,15 @@ YDLP_OPTIONS = {
     'default_search': 'ytsearch',
     'quiet': False,
     'skip_download': True,
+    'force_generic_extractor': True,
+    'extractaudio': True,
+    'geo_bypass': True,
+    'concurrent_fragment_downloads': 5,
+    'max_downloads': 1,
+    'no_warnings': True,
+    'prefer_ffmpeg': True,
 }
+
 IDLE_TIMER = {
   'max_duration_timeout':180 #time in sec
 }
