@@ -1,6 +1,6 @@
 from discord.ext import commands
 
-from .utils import cm_clear,cm_djhelp,cm_leave,cm_ping,cm_play,cm_showq,cm_skip,cm_toggle
+from .utils import cm_clear,cm_djhelp,cm_leave,cm_ping,cm_play,cm_showq,cm_skip,cm_toggle,cm_shuffle
 from .music_queue import MusicQueue
 
 
@@ -40,3 +40,7 @@ class MusicBot(commands.Cog):
     @commands.command()
     async def leave(self, ctx) -> None:
         await cm_leave(ctx)
+    
+    @commands.command()
+    async def shuffle(self,ctx) -> None:
+        await cm_shuffle(self,ctx)

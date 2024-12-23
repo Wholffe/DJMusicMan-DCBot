@@ -143,5 +143,13 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         self.ctx.voice_client.disconnect.assert_not_called()
         self.ctx.send.assert_not_called()
 
+    @patch('random.shuffle')
+    async def test_shuffle_command_calls_random_shuffle(self, mock_shuffle):
+        command = self.bot.get_command('shuffle')
+        await command(self.ctx)
+
+        mock_shuffle.assert_called_once_with(self.musicbot.queue.queue)
+        self.ctx.send.assert_called_once_with(f'{self.message_handler.prefix_success} {CONST.MESSAGE_QUEUE_SHUFFLED}')
+
 if __name__ == '__main__':
     unittest.main()

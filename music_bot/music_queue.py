@@ -1,3 +1,6 @@
+import random
+
+
 class MusicQueue:
     """Handles the song queue for the music bot."""
     def __init__(self):
@@ -17,3 +20,6 @@ class MusicQueue:
 
     def list_queue(self):
         return "\n".join([f"{i + 1}. {song[1]}" for i, song in enumerate(self.queue)])
+    
+    def shuffle_queue(self):
+        random.shuffle(self.queue)

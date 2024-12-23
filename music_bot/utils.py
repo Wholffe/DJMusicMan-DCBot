@@ -76,13 +76,13 @@ async def cm_play(musicbot, ctx, search):
     async with ctx.typing():
         songs = await get_song_infos(search)
 
-    for song in songs:
-        musicbot.queue.add_song(song['url'], song['title'])
+        for song in songs:
+            musicbot.queue.add_song(song['url'], song['title'])
 
-    if len(songs) > 1:
-        await message_handler.send_success(ctx, f"Added {len(songs)} songs to the queue.")
-    else:
-        await message_handler.send_success(ctx, f"Added to queue: {songs[0]['title']}")
+        if len(songs) > 1:
+            await message_handler.send_success(ctx, f"Added {len(songs)} songs to the queue.")
+        else:
+            await message_handler.send_success(ctx, f"Added to queue: {songs[0]['title']}")
 
     if not await is_playing(ctx):
         await play_next(ctx, musicbot.queue, musicbot.client)
@@ -126,3 +126,8 @@ async def cm_djhelp(ctx) -> None:
 @error_handling
 async def cm_ping(ctx) -> None:
     await message_handler.send_info(ctx, CONST.MESSAGE_PONG)
+
+@error_handling
+async def cm_shuffle(musicbot,ctx) -> None:
+    musicbot.queue.shuffle_queue()
+    await message_handler.send_success(ctx, CONST.MESSAGE_QUEUE_SHUFFLED)

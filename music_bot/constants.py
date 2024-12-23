@@ -10,6 +10,7 @@ MESSAGE_HELP: Final = (
     '/ping - Ping the bot\n'
     '/play <search> - Play a song from YouTube\n'
     '/showq - Show the current queue\n'
+    '/shuffle - Shuffle the queue order\n'
     '/skip - Skip the current song\n'
     '/toggle - Toggle pause|continue playback\n'
 )
@@ -19,6 +20,7 @@ MESSAGE_QUEUE_EMPTY: Final = 'The queue is empty.'
 MESSAGE_QUEUE_EMPTY_USE_PLAY: Final = 'Queue is empty. Use /play to add songs.'
 MESSAGE_SKIPPED_SONG: Final = 'Skipped the current song.'
 MESSAGE_QUEUE_CLEARED: Final = 'Queue cleared.'
+MESSAGE_QUEUE_SHUFFLED: Final = 'Queue shuffeled.'
 MESSAGE_NO_ACTIVITY_TIMEOUT: Final = 'Bot idle for too long. Leaving the voice channel.'
 
 #region Acrions
