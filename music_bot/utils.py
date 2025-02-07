@@ -118,9 +118,11 @@ async def cm_leave(ctx):
 @error_handling
 async def cm_toggle(ctx):
     if await is_playing(ctx):
-        await ctx.voice_client.pause()
+        ctx.voice_client.pause()
+        await message_handler.send_success(ctx, CONST.MESSAGE_PAUSED_SONG)
     else:
-        await ctx.voice_client.resume()
+        ctx.voice_client.resume()
+        await message_handler.send_success(ctx, CONST.MESSAGE_RESUMED_SONG)
 
 @error_handling
 async def cm_djhelp(ctx) -> None:

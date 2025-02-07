@@ -9,7 +9,7 @@ from music_bot.core import MusicBot
 from music_bot.message_handler import MessageHandler
 from music_bot.music_queue import MusicQueue
 from music_bot.idle_timer import IdleTimer
-from music_bot.utils import play_next  # Importiere die play_next-Funktion
+from music_bot.utils import play_next
 
 intents = discord.Intents.default()
 intents.message_content = True

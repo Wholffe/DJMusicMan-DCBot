@@ -23,6 +23,8 @@ MESSAGE_SKIPPED_SONG: Final = 'Skipped the current song.'
 MESSAGE_QUEUE_CLEARED: Final = 'Queue cleared.'
 MESSAGE_QUEUE_SHUFFLED: Final = 'Queue shuffeled.'
 MESSAGE_NO_ACTIVITY_TIMEOUT: Final = 'Bot idle for too long. Leaving the voice channel.'
+MESSAGE_PAUSED_SONG: Final = 'Paused the song.'
+MESSAGE_RESUMED_SONG: Final = 'Resumed the song.'
 
 #region Acrions
 ACTION_PLAYING_SONG: Final = 'playing the song'
