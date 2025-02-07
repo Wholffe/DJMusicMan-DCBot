@@ -7,6 +7,7 @@ MESSAGE_HELP: Final = (
     'Available commands:\n'
     '/clear - Clear the current queue\n'
     '/leave - Leave the voice channel'
+    '/loop - Toggle loop mode for the current song\n'
     '/ping - Ping the bot\n'
     '/play <search> - Play a song from YouTube\n'
     '/showq - Show the current queue\n'

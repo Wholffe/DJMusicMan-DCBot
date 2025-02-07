@@ -9,6 +9,7 @@ from music_bot.core import MusicBot
 from music_bot.message_handler import MessageHandler
 from music_bot.music_queue import MusicQueue
 from music_bot.idle_timer import IdleTimer
+from music_bot.utils import play_next  # Importiere die play_next-Funktion
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -88,15 +89,18 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
 
         self.ctx.send.assert_called_once_with(f'{self.message_handler.prefix_info} {CONST.MESSAGE_QUEUE_EMPTY}')
 
-    async def test_showq_command_with_items(self):
+    @patch('music_bot.utils.is_playing', new_callable=AsyncMock)
+    @patch('music_bot.utils.play_next', new_callable=AsyncMock)
+    async def test_showq_command_with_items(self, mock_play_next, mock_is_playing):
         self.musicbot.queue.add_song('url1', 'title1')
         self.musicbot.queue.add_song('url2', 'title2')
+        self.musicbot.queue.current_song = self.musicbot.queue.get_next_song()
 
         command = self.bot.get_command('showq')
         await command(self.ctx)
-
-        message = 'Queue:\n1. title1\n2. title2'
-        self.ctx.send.assert_called_once_with(f'{self.message_handler.prefix_info} {message}')
+        
+        expected_message = f'Current song: title1\nQueue:\n1. title2'
+        self.ctx.send.assert_called_once_with(f'{self.message_handler.prefix_info} {expected_message}')
 
     async def test_toggle_command_pause(self):
         self.ctx.voice_client.is_playing.return_value = True
@@ -150,6 +154,44 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
 
         mock_shuffle.assert_called_once_with(self.musicbot.queue.queue)
         self.ctx.send.assert_called_once_with(f'{self.message_handler.prefix_success} {CONST.MESSAGE_QUEUE_SHUFFLED}')
+
+    async def test_loop_command_enable(self):
+        command = self.bot.get_command('loop')
+        await command(self.ctx)
+
+        self.assertTrue(self.musicbot.queue.loop)
+        self.ctx.send.assert_called_once_with(f'{self.message_handler.prefix_success} Looping is enabled.')
+
+    async def test_loop_command_disable(self):
+        self.musicbot.queue.loop = True
+
+        command = self.bot.get_command('loop')
+        await command(self.ctx)
+
+        self.assertFalse(self.musicbot.queue.loop)
+        self.ctx.send.assert_called_once_with(f'{self.message_handler.prefix_success} Looping is disabled.')
+
+    @patch('discord.FFmpegOpusAudio.from_probe', new_callable=AsyncMock)
+    async def test_play_next_with_loop(self, mock_from_probe):
+        self.musicbot.queue.add_song('url1', 'title1')
+        self.musicbot.queue.add_song('url2', 'title2')
+        self.musicbot.queue.loop = True
+        self.musicbot.queue.current_song = self.musicbot.queue.get_next_song()
+
+        source = MagicMock()
+        mock_from_probe.return_value = source
+
+        self.ctx.voice_client.play = MagicMock()
+
+        await play_next(self.ctx, self.musicbot.queue, self.musicbot.client)
+
+        self.assertEqual(self.musicbot.queue.current_song[1], 'title1')
+        self.assertEqual(len(self.musicbot.queue.queue), 1)
+        self.assertEqual(self.musicbot.queue.queue[0][1], 'title2')
+        self.ctx.voice_client.play.assert_called_once_with(
+            source,
+            after=unittest.mock.ANY
+        )
 
 if __name__ == '__main__':
     unittest.main()

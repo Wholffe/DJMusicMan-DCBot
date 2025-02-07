@@ -25,18 +25,19 @@ class MusicQueue:
         return not self.queue
 
     def get_current_song_info(self) -> str:
-        if self.current_song:
-            current_song_info = f'Current song: {self.current_song[1]}'
-            if self.loop:
-                current_song_info += ' (looping)'
-            return current_song_info
-        return ''
+        if not self.current_song:
+            return ''
+        current_song_info = self.current_song[1]
+        if self.loop:
+            current_song_info += ' (looping)'
+        return current_song_info
 
     def list_queue(self) -> str:
         if not self.queue:
-            return 'The queue is empty.'
+            return ''
         queue_list = [f"{i + 1}. {song[1]}" for i, song in enumerate(self.queue)]
-        return "\n".join(queue_list)
+        queue_list = '\n'.join(queue_list)
+        return queue_list
     
     def shuffle_queue(self) -> None:
         random.shuffle(self.queue)

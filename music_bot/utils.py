@@ -96,16 +96,14 @@ async def cm_skip(ctx):
 
 @error_handling
 async def cm_showq(musicbot, ctx):
-    current_song_info = musicbot.queue.get_current_song_info()
-    if musicbot.queue.is_empty():
-        if current_song_info:
-            await message_handler.send_info(ctx, f'{current_song_info}\n{CONST.MESSAGE_QUEUE_EMPTY}')
-        else:
-            await message_handler.send_info(ctx, CONST.MESSAGE_QUEUE_EMPTY)
+    if not musicbot.queue.current_song:
+        await message_handler.send_info(ctx, CONST.MESSAGE_QUEUE_EMPTY)
         return
 
-    queue_list = musicbot.queue.list_queue()
-    await message_handler.send_info(ctx, f'{current_song_info}\nQueue:\n{queue_list}')
+    current_song_info = f'Current song: {musicbot.queue.get_current_song_info()}'
+    queue_songs = musicbot.queue.list_queue()
+    queue_info = '' if not queue_songs else f'Queue:\n{queue_songs}'
+    await message_handler.send_info(ctx, f'{current_song_info}\n{queue_info}')
 
 @error_handling
 async def cm_clear(musicbot, ctx):
@@ -119,7 +117,7 @@ async def cm_leave(ctx):
 
 @error_handling
 async def cm_toggle(ctx):
-    if is_playing(ctx):
+    if await is_playing(ctx):
         await ctx.voice_client.pause()
     else:
         await ctx.voice_client.resume()
