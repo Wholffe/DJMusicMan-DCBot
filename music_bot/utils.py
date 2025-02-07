@@ -66,7 +66,8 @@ async def play_next(ctx, queue: MusicQueue, client):
         source,
         after=lambda _: client.loop.create_task(play_next(ctx, queue, client))
     )
-    await message_handler.send_success(ctx, f'Now playing: {title}')
+    current_song_info = queue.get_current_song_info()
+    await message_handler.send_success(ctx, current_song_info)
 
 @error_handling
 async def cm_play(musicbot, ctx, search):
@@ -95,12 +96,16 @@ async def cm_skip(ctx):
 
 @error_handling
 async def cm_showq(musicbot, ctx):
+    current_song_info = musicbot.queue.get_current_song_info()
     if musicbot.queue.is_empty():
-        await message_handler.send_info(ctx, CONST.MESSAGE_QUEUE_EMPTY)
+        if current_song_info:
+            await message_handler.send_info(ctx, f'{current_song_info}\n{CONST.MESSAGE_QUEUE_EMPTY}')
+        else:
+            await message_handler.send_info(ctx, CONST.MESSAGE_QUEUE_EMPTY)
         return
 
     queue_list = musicbot.queue.list_queue()
-    await message_handler.send_info(ctx, f'Queue:\n{queue_list}')
+    await message_handler.send_info(ctx, f'{current_song_info}\nQueue:\n{queue_list}')
 
 @error_handling
 async def cm_clear(musicbot, ctx):
@@ -114,7 +119,7 @@ async def cm_leave(ctx):
 
 @error_handling
 async def cm_toggle(ctx):
-    if await is_playing(ctx):
+    if is_playing(ctx):
         await ctx.voice_client.pause()
     else:
         await ctx.voice_client.resume()
@@ -131,3 +136,8 @@ async def cm_ping(ctx) -> None:
 async def cm_shuffle(musicbot,ctx) -> None:
     musicbot.queue.shuffle_queue()
     await message_handler.send_success(ctx, CONST.MESSAGE_QUEUE_SHUFFLED)
+
+@error_handling
+async def cm_loop(musicbot,ctx) -> None:
+    musicbot.queue.toggle_loop()
+    await message_handler.send_success(ctx, f"Looping is {'enabled' if musicbot.queue.loop else 'disabled'}.")

@@ -1,6 +1,6 @@
 from discord.ext import commands
 
-from .utils import cm_clear,cm_djhelp,cm_leave,cm_ping,cm_play,cm_showq,cm_skip,cm_toggle,cm_shuffle
+from .utils import cm_clear,cm_djhelp,cm_leave,cm_ping,cm_play,cm_showq,cm_skip,cm_toggle,cm_shuffle,cm_loop
 from .music_queue import MusicQueue
 
 
@@ -44,3 +44,7 @@ class MusicBot(commands.Cog):
     @commands.command()
     async def shuffle(self,ctx) -> None:
         await cm_shuffle(self,ctx)
+    
+    @commands.command()
+    async def loop(self,ctx) -> None:
+        await cm_loop(self,ctx)
