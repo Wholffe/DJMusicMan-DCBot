@@ -4,7 +4,7 @@ from typing import Final
 #region Embeds
 def get_djhelp_embed():
     return {
-        "title": "DJ Music Bot Help",
+        "title": "DJ Music Man Help",
         "description": "Here are the available commands:",
         "fields": [
             {"name": "🎶 **Musikwiedergabe**", "value": "", "inline": False},
@@ -24,7 +24,7 @@ def get_djhelp_embed():
             {"name": "/leave", "value": "Disconnects the bot from the voice channel.", "inline": True},
             {"name": "/ping", "value": "Ping the bot", "inline": True},
         ],
-        "footer": "DJ Music Bot"
+        "footer": "DJ Music Man V2.1"
     }
 
 def get_queue_embed():
@@ -33,7 +33,7 @@ def get_queue_embed():
         "description": "Here are the listed songs:",
         "fields": [
         ],
-        "footer": "DJ Music Bot"
+        "footer": "DJ Music Man"
     }
 
 #region Messages

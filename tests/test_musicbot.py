@@ -74,7 +74,7 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
 
         self.ctx.send.assert_called_once()
         embed = self.ctx.send.call_args[1]['embed']
-        self.assertEqual(embed.title, "DJ Music Bot Help")
+        self.assertEqual(embed.title, "DJ Music Man Help")
         self.assertEqual(embed.description, "Here are the available commands:")
         self.assertGreaterEqual(len(embed.fields), 1)
 
