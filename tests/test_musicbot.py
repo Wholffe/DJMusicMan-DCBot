@@ -72,7 +72,11 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         command = self.bot.get_command('djhelp')
         await command(self.ctx)
 
-        self.ctx.send.assert_called_once_with(f'{self.message_handler.prefix_info} {CONST.MESSAGE_HELP}')
+        self.ctx.send.assert_called_once()
+        embed = self.ctx.send.call_args[1]['embed']
+        self.assertEqual(embed.title, "DJ Music Bot Help")
+        self.assertEqual(embed.description, "Here are the available commands:")
+        self.assertGreaterEqual(len(embed.fields), 1)
 
     async def test_clear_command(self):
         self.musicbot.queue.add_song('url1', 'title1')
@@ -99,8 +103,13 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         command = self.bot.get_command('showq')
         await command(self.ctx)
         
-        expected_message = f'Current song: title1\nQueue:\n1. title2'
-        self.ctx.send.assert_called_once_with(f'{self.message_handler.prefix_info} {expected_message}')
+        self.ctx.send.assert_called_once()
+        embed = self.ctx.send.call_args[1]['embed']
+        self.assertEqual(embed.title, "Current Queue")
+        self.assertEqual(embed.description, "Here are the listed songs:")
+        self.assertGreaterEqual(len(embed.fields), 2)
+        self.assertTrue(any(field.name == "Now Playing" for field in embed.fields))
+        self.assertTrue(any(field.name == "Loop Status" for field in embed.fields))
 
     async def test_toggle_command_pause(self):
         self.ctx.voice_client.is_playing.return_value = True

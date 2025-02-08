@@ -1,6 +1,40 @@
 from typing import Final
 
 
+#region Embeds
+def get_djhelp_embed():
+    return {
+        "title": "DJ Music Bot Help",
+        "description": "Here are the available commands:",
+        "fields": [
+            {"name": "🎶 **Musikwiedergabe**", "value": "", "inline": False},
+            {"name": "/play <search>", "value": "Plays a song from YouTube.", "inline": True},
+            {"name": "/pause", "value": "Pauses the current song.", "inline": True},
+            {"name": "/toggle", "value": "Toggle pause|continue playback", "inline": True},
+            {"name": "/skip", "value": "Skips the current song.", "inline": True},
+
+            {"name": "🛠️ **Queue-Management**", "value": "", "inline": False},
+            {"name": "/showq", "value": "Shows the current queue.", "inline": True},
+            {"name": "/shuffle", "value": "Shuffles the queue.", "inline": True},
+            {"name": "/clear", "value": "Clears the queue.", "inline": True},
+            {"name": "/loop", "value": "Toggles looping of the current song.", "inline": True},
+
+            {"name": "⚙️ **Sonstige Befehle**", "value": "", "inline": False},
+            {"name": "/leave", "value": "Disconnects the bot from the voice channel.", "inline": True},
+            {"name": "/ping", "value": "Ping the bot", "inline": True},
+        ],
+        "footer": "DJ Music Bot"
+    }
+
+def get_queue_embed():
+    return {
+        "title": "Current Queue",
+        "description": "Here are the listed songs:",
+        "fields": [
+        ],
+        "footer": "DJ Music Bot"
+    }
+
 #region Messages
 MESSAGE_FAILED_VIDEO_INFO: Final = 'Failed to retrieve the video information.'
 MESSAGE_HELP: Final = (

@@ -101,9 +101,19 @@ async def cm_showq(musicbot, ctx):
         return
 
     current_song_info = f'Current song: {musicbot.queue.get_current_song_info()}'
+    loop_status = "Enabled" if musicbot.queue.loop else "Disabled"
     queue_songs = musicbot.queue.list_queue()
-    queue_info = '' if not queue_songs else f'Queue:\n{queue_songs}'
-    await message_handler.send_info(ctx, f'{current_song_info}\n{queue_info}')
+
+    queue_embed = CONST.get_queue_embed()
+    if current_song_info:
+        queue_embed["fields"].append({"name": "Now Playing", "value": current_song_info, "inline": True})
+        queue_embed["fields"].append({"name": "Loop Status", "value": loop_status, "inline": True})
+
+    if queue_songs:
+        queue_embed["fields"].append({"name": "Up Next", "value": queue_songs, "inline": False})
+    else:
+        queue_embed["fields"].append({"name": "Queue", "value": "The queue is empty.", "inline": False})
+    await message_handler.send_embed(ctx, queue_embed)
 
 @error_handling
 async def cm_clear(musicbot, ctx):
@@ -126,7 +136,8 @@ async def cm_toggle(ctx):
 
 @error_handling
 async def cm_djhelp(ctx) -> None:
-    await message_handler.send_info(ctx, CONST.MESSAGE_HELP)
+    embed_dict = CONST.get_djhelp_embed()
+    await message_handler.send_embed(ctx, embed_dict)
 
 @error_handling
 async def cm_ping(ctx) -> None:
