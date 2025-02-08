@@ -7,9 +7,8 @@ def get_djhelp_embed():
         "title": "DJ Music Man Help",
         "description": "Here are the available commands:",
         "fields": [
-            {"name": "🎶 **Musikwiedergabe**", "value": "", "inline": False},
+            {"name": "🎶 **Music playback**", "value": "", "inline": False},
             {"name": "/play <search>", "value": "Plays a song from YouTube.", "inline": True},
-            {"name": "/pause", "value": "Pauses the current song.", "inline": True},
             {"name": "/toggle", "value": "Toggle pause|continue playback", "inline": True},
             {"name": "/skip", "value": "Skips the current song.", "inline": True},
 
@@ -21,12 +20,12 @@ def get_djhelp_embed():
             {"name": "/rm <index>", "value": "Removes a song from the queue.", "inline": True},
             {"name": " ", "value": " ", "inline": True},
 
-            {"name": "⚙️ **Sonstige Befehle**", "value": "", "inline": False},
+            {"name": "⚙️ **Other commands**", "value": "", "inline": False},
             {"name": "/leave", "value": "Disconnects the bot from the voice channel.", "inline": True},
             {"name": "/ping", "value": "Ping the bot", "inline": True},
             {"name": " ", "value": " ", "inline": True},
         ],
-        "footer": "DJ Music Man V2.1.1"
+        "footer": "DJ Music Man V2.1.2"
     }
 
 def get_queue_embed():

@@ -28,8 +28,12 @@ async def get_song_infos(search: str) -> list:
     Returns:
         list: A list of dictionaries, each containing details about a song (url:str,title:str):
     """
-    with yt_dlp.YoutubeDL(YDLP_OPTIONS) as ydl:
-        info = ydl.extract_info(search, download=False)
+    try:
+        with yt_dlp.YoutubeDL(YDLP_OPTIONS) as ydl:
+            info = ydl.extract_info(search, download=False)
+    except yt_dlp.utils.DownloadError as e:
+        return []
+    
     entries = info.get('entries') if 'entries' in info and isinstance(info['entries'], list) else [info]
     
     songs = [
@@ -77,6 +81,9 @@ async def cm_play(musicbot, ctx, search):
 
     async with ctx.typing():
         songs = await get_song_infos(search)
+        if not songs:
+            await message_handler.send_error(ctx, CONST.MESSAGE_FAILED_VIDEO_INFO)
+            return
 
         for song in songs:
             musicbot.queue.add_song(song['url'], song['title'])

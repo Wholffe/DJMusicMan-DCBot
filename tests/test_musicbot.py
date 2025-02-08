@@ -53,6 +53,23 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         mock_play_next.assert_called_once_with(self.ctx, self.musicbot.queue, self.musicbot.client)
         self.ctx.send.assert_called_once_with(f'{self.message_handler.prefix_success} Added to queue: Test Song')
 
+    @patch('music_bot.utils.is_playing', new_callable=AsyncMock)
+    @patch('music_bot.utils.play_next', new_callable=AsyncMock)
+    @patch('music_bot.utils.get_song_infos', new_callable=AsyncMock)
+    @patch('music_bot.utils.join_voice_channel', new_callable=AsyncMock)
+    async def test_cm_play_invalid_url(self, mock_join_voice_channel, mock_get_song_infos, mock_play_next, mock_is_playing):
+        mock_join_voice_channel.return_value = True
+        mock_get_song_infos.return_value = []
+        mock_is_playing.return_value = False
+
+        command = self.bot.get_command('play')
+        await command(self.ctx, search='invalid url')
+
+        mock_join_voice_channel.assert_called_once_with(self.musicbot, self.ctx)
+        mock_get_song_infos.assert_called_once_with('invalid url')
+        mock_play_next.assert_not_called()
+        self.ctx.send.assert_called_once_with(f'{self.message_handler.prefix_error} {CONST.MESSAGE_FAILED_VIDEO_INFO}')
+
     async def test_skip_command(self):
         self.ctx.voice_client.is_playing.return_value = True
 
