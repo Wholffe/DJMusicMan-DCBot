@@ -41,13 +41,14 @@ async def get_song_infos(search: str) -> list:
     ]
     return songs
 
-async def join_voice_channel(ctx) -> bool:
+async def join_voice_channel(musicbot,ctx) -> bool:
     voice_channel = ctx.author.voice.channel if ctx.author.voice else None
     if not voice_channel:
         await message_handler.send_error(ctx, CONST.MESSAGE_NOT_CONNECTED)
         return False
     if not ctx.voice_client:
         await voice_channel.connect()
+        musicbot.queue.loop = False
     return True
 
 async def is_playing(ctx) -> bool:
@@ -71,7 +72,7 @@ async def play_next(ctx, queue: MusicQueue, client):
 
 @error_handling
 async def cm_play(musicbot, ctx, search):
-    if not await join_voice_channel(ctx):
+    if not await join_voice_channel(musicbot,ctx):
         return
 
     async with ctx.typing():

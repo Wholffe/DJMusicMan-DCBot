@@ -48,7 +48,7 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         command = self.bot.get_command('play')
         await command(self.ctx, search='test search')
 
-        mock_join_voice_channel.assert_called_once_with(self.ctx)
+        mock_join_voice_channel.assert_called_once_with(self.musicbot,self.ctx)
         mock_get_song_infos.assert_called_once_with('test search')
         mock_play_next.assert_called_once_with(self.ctx, self.musicbot.queue, self.musicbot.client)
         self.ctx.send.assert_called_once_with(f'{self.message_handler.prefix_success} Added to queue: Test Song')

@@ -27,10 +27,7 @@ class MusicQueue:
     def get_current_song_info(self) -> str:
         if not self.current_song:
             return ''
-        current_song_info = self.current_song[1]
-        if self.loop:
-            current_song_info += ' (looping)'
-        return current_song_info
+        return self.current_song[1]
 
     def list_queue(self) -> str:
         if not self.queue:

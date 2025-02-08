@@ -18,6 +18,7 @@ def get_djhelp_embed():
             {"name": "/shuffle", "value": "Shuffles the queue.", "inline": True},
             {"name": "/clear", "value": "Clears the queue.", "inline": True},
             {"name": "/loop", "value": "Toggles looping of the current song.", "inline": True},
+            {"name": "/rm <index>", "value": "Removes a song from the queue.", "inline": True},
 
             {"name": "⚙️ **Sonstige Befehle**", "value": "", "inline": False},
             {"name": "/leave", "value": "Disconnects the bot from the voice channel.", "inline": True},
