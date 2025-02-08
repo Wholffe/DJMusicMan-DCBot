@@ -19,12 +19,14 @@ def get_djhelp_embed():
             {"name": "/clear", "value": "Clears the queue.", "inline": True},
             {"name": "/loop", "value": "Toggles looping of the current song.", "inline": True},
             {"name": "/rm <index>", "value": "Removes a song from the queue.", "inline": True},
+            {"name": " ", "value": " ", "inline": True},
 
             {"name": "⚙️ **Sonstige Befehle**", "value": "", "inline": False},
             {"name": "/leave", "value": "Disconnects the bot from the voice channel.", "inline": True},
             {"name": "/ping", "value": "Ping the bot", "inline": True},
+            {"name": " ", "value": " ", "inline": True},
         ],
-        "footer": "DJ Music Man V2.1"
+        "footer": "DJ Music Man V2.1.1"
     }
 
 def get_queue_embed():
