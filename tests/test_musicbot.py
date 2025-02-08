@@ -202,5 +202,26 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
             after=unittest.mock.ANY
         )
 
+    async def test_remove_from_queue_valid(self):
+        self.musicbot.queue.add_song('url1', 'title1')
+        self.musicbot.queue.add_song('url2', 'title2')
+
+        command = self.bot.get_command('rm')
+        await command(self.ctx, 1)
+
+        self.ctx.send.assert_called_once_with(f'{self.message_handler.prefix_success} Removed from queue: title1')
+        self.assertEqual(len(self.musicbot.queue.queue), 1)
+        self.assertEqual(self.musicbot.queue.queue[0][1], 'title2')
+
+    async def test_remove_from_queue_invalid(self):
+        self.musicbot.queue.add_song('url1', 'title1')
+
+        command = self.bot.get_command('rm')
+        await command(self.ctx, 2)
+
+        self.ctx.send.assert_called_once_with(f'{self.message_handler.prefix_error} Invalid queue number: 2')
+        self.assertEqual(len(self.musicbot.queue.queue), 1)
+        self.assertEqual(self.musicbot.queue.queue[0][1], 'title1')
+
 if __name__ == '__main__':
     unittest.main()

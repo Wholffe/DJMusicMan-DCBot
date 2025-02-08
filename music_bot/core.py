@@ -1,6 +1,6 @@
 from discord.ext import commands
 
-from .utils import cm_clear,cm_djhelp,cm_leave,cm_ping,cm_play,cm_showq,cm_skip,cm_toggle,cm_shuffle,cm_loop
+from .utils import cm_clear,cm_djhelp,cm_leave,cm_ping,cm_play,cm_showq,cm_skip,cm_toggle,cm_shuffle,cm_loop,cm_remove
 from .music_queue import MusicQueue
 
 
@@ -48,3 +48,7 @@ class MusicBot(commands.Cog):
     @commands.command()
     async def loop(self,ctx) -> None:
         await cm_loop(self,ctx)
+    
+    @commands.command(name='rm')
+    async def remove_element(self,ctx,index:int) -> None:
+        await cm_remove(self,ctx,index)

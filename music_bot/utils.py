@@ -152,3 +152,11 @@ async def cm_shuffle(musicbot,ctx) -> None:
 async def cm_loop(musicbot,ctx) -> None:
     musicbot.queue.toggle_loop()
     await message_handler.send_success(ctx, f"Looping is {'enabled' if musicbot.queue.loop else 'disabled'}.")
+
+@error_handling
+async def cm_remove(musicbot,ctx,index) -> None:
+    removed_song = musicbot.queue.remove_song(index-1) # 1-based index
+    if removed_song:
+        await message_handler.send_success(ctx,f"Removed from queue: {removed_song[1]}")
+    else:
+        await message_handler.send_error(ctx,f"Invalid queue number: {index}")

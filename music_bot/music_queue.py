@@ -44,3 +44,8 @@ class MusicQueue:
     
     def toggle_loop(self) -> None:
         self.loop = not self.loop
+
+    def remove_song(self, index):
+        if 0 <= index < len(self.queue):
+            return self.queue.pop(index)
+        return None
