@@ -1,4 +1,5 @@
 from typing import Final
+from copy import deepcopy
 
 #region Info
 VERSION: Final = '2.1.3'
@@ -38,10 +39,10 @@ EMBED_QUEUE = {
     "footer": FOOTER
 }
 def get_djhelp_embed():
-    return EMBED_DJHELP.copy()
+    return deepcopy(EMBED_DJHELP)
 
 def get_queue_embed():
-    return EMBED_QUEUE.copy()
+    return deepcopy(EMBED_QUEUE)
 
 #region Messages
 MESSAGE_FAILED_VIDEO_INFO: Final = 'Failed to retrieve the video information.'

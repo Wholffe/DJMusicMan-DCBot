@@ -6,10 +6,13 @@ from music_bot import constants as CONST
 from .message_handler import MessageHandler
 from .music_queue import MusicQueue
 from .idle_timer import IdleTimer
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
 
 message_handler = MessageHandler()
 idle_timer = IdleTimer()
+executor = ThreadPoolExecutor(max_workers=5)
 
 def error_handling(func):
     """Decorator to handle exceptions in commands."""
@@ -20,22 +23,15 @@ def error_handling(func):
             await message_handler.send_error(ctx,f'An error occurred while executing the command: {e}')
     return wrapper
 
-async def get_song_infos(search: str) -> list:
-    """
-    Args:
-        search (str): The search query or URL to retrieve information from.
-
-    Returns:
-        list: A list of dictionaries, each containing details about a song (url:str,title:str):
-    """
+def extract_song_infos(search: str) -> list:
     try:
         with yt_dlp.YoutubeDL(YDLP_OPTIONS) as ydl:
             info = ydl.extract_info(search, download=False)
-    except yt_dlp.utils.DownloadError as e:
+    except yt_dlp.utils.DownloadError:
         return []
     
     entries = info.get('entries') if 'entries' in info and isinstance(info['entries'], list) else [info]
-    
+
     songs = [
         {
             'url': entry.get('url'),
@@ -43,6 +39,11 @@ async def get_song_infos(search: str) -> list:
         }
         for entry in entries if entry
     ]
+    return songs
+
+async def get_song_infos(search: str) -> list:
+    loop = asyncio.get_event_loop()
+    songs = await loop.run_in_executor(executor, extract_song_infos, search)
     return songs
 
 async def join_voice_channel(musicbot,ctx) -> bool:
