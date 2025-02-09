@@ -58,6 +58,7 @@ async def join_voice_channel(musicbot,ctx) -> bool:
 async def is_playing(ctx) -> bool:
     return ctx.voice_client and ctx.voice_client.is_playing()
 
+@error_handling
 async def play_next(ctx, queue: MusicQueue, client):
     song = queue.get_next_song()
     if queue.is_empty() and (not song):
@@ -110,7 +111,7 @@ async def cm_showq(musicbot, ctx):
 
     current_song_info = f'Current song: {musicbot.queue.get_current_song_info()}'
     loop_status = "Enabled" if musicbot.queue.loop else "Disabled"
-    queue_songs = musicbot.queue.list_queue()
+    queue_songs, remaining_songs = musicbot.queue.list_queue_with_limit()
 
     queue_embed = CONST.get_queue_embed()
     if current_song_info:
@@ -119,6 +120,8 @@ async def cm_showq(musicbot, ctx):
 
     if queue_songs:
         queue_embed["fields"].append({"name": "Up Next", "value": queue_songs, "inline": False})
+        if remaining_songs > 0:
+            queue_embed["fields"].append({"name": "And more...", "value": f"{remaining_songs} more items", "inline": False})
     else:
         queue_embed["fields"].append({"name": "Queue", "value": "The queue is empty.", "inline": False})
     await message_handler.send_embed(ctx, queue_embed)

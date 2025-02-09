@@ -35,6 +35,23 @@ class MusicQueue:
         queue_list = [f"{i + 1}. {song[1]}" for i, song in enumerate(self.queue)]
         queue_list = '\n'.join(queue_list)
         return queue_list
+
+    def list_queue_with_limit(self, max_length: int = 800) -> tuple[str, int]:
+        if not self.queue:
+            return '', 0
+        current_length = 0
+        displayed_songs = []
+        remaining_songs = 0
+
+        for song in self.queue:
+            song_str = f"{len(displayed_songs) + 1}. {song[1]}"
+            if current_length + len(song_str) >= max_length:
+                remaining_songs += 1
+            else:
+                displayed_songs.append(song_str)
+                current_length += len(song_str)
+
+        return '\n'.join(displayed_songs), remaining_songs
     
     def shuffle_queue(self) -> None:
         random.shuffle(self.queue)

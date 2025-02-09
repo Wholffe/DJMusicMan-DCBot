@@ -6,8 +6,8 @@ Set-Location -Path $ROOT_PATH
 
 git pull origin main --force
 
-docker stop $DOCKER_IMAGE_NAME -ErrorAction SilentlyContinue
-docker rm $DOCKER_IMAGE_NAME -ErrorAction SilentlyContinue
+docker stop $DOCKER_IMAGE_NAME
+docker rm $DOCKER_IMAGE_NAME
 docker build -t $DOCKER_IMAGE_NAME .
 docker run -d --name $DOCKER_IMAGE_NAME --env-file .env --restart unless-stopped $DOCKER_IMAGE_NAME
 

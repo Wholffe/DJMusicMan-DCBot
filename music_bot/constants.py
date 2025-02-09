@@ -1,41 +1,47 @@
 from typing import Final
 
+#region Info
+VERSION: Final = '2.1.3'
+NAME: Final = 'DJ Music Man'
+FOOTER: Final = f'{NAME} {VERSION}'
 
 #region Embeds
+EMBED_DJHELP = {
+    "title": f"{NAME} Help",
+    "description": "Here are the available commands:",
+    "fields": [
+        {"name": "🎶 **Music playback**", "value": "", "inline": False},
+        {"name": "/play <search>", "value": "Plays a song from YouTube.", "inline": True},
+        {"name": "/toggle", "value": "Toggle pause|continue playback", "inline": True},
+        {"name": "/skip", "value": "Skips the current song.", "inline": True},
+
+        {"name": "🛠️ **Queue-Management**", "value": "", "inline": False},
+        {"name": "/showq", "value": "Shows the current queue.", "inline": True},
+        {"name": "/shuffle", "value": "Shuffles the queue.", "inline": True},
+        {"name": "/clear", "value": "Clears the queue.", "inline": True},
+        {"name": "/loop", "value": "Toggles looping of the current song.", "inline": True},
+        {"name": "/rm <index>", "value": "Removes a song from the queue.", "inline": True},
+        {"name": " ", "value": " ", "inline": True},
+
+        {"name": "⚙️ **Other commands**", "value": "", "inline": False},
+        {"name": "/leave", "value": "Disconnects the bot from the voice channel.", "inline": True},
+        {"name": "/ping", "value": "Ping the bot", "inline": True},
+        {"name": " ", "value": " ", "inline": True},
+    ],
+    "footer": FOOTER
+}
+EMBED_QUEUE = {
+    "title": "Current Queue",
+    "description": "Here are the listed songs:",
+    "fields": [
+    ],
+    "footer": FOOTER
+}
 def get_djhelp_embed():
-    return {
-        "title": "DJ Music Man Help",
-        "description": "Here are the available commands:",
-        "fields": [
-            {"name": "🎶 **Music playback**", "value": "", "inline": False},
-            {"name": "/play <search>", "value": "Plays a song from YouTube.", "inline": True},
-            {"name": "/toggle", "value": "Toggle pause|continue playback", "inline": True},
-            {"name": "/skip", "value": "Skips the current song.", "inline": True},
-
-            {"name": "🛠️ **Queue-Management**", "value": "", "inline": False},
-            {"name": "/showq", "value": "Shows the current queue.", "inline": True},
-            {"name": "/shuffle", "value": "Shuffles the queue.", "inline": True},
-            {"name": "/clear", "value": "Clears the queue.", "inline": True},
-            {"name": "/loop", "value": "Toggles looping of the current song.", "inline": True},
-            {"name": "/rm <index>", "value": "Removes a song from the queue.", "inline": True},
-            {"name": " ", "value": " ", "inline": True},
-
-            {"name": "⚙️ **Other commands**", "value": "", "inline": False},
-            {"name": "/leave", "value": "Disconnects the bot from the voice channel.", "inline": True},
-            {"name": "/ping", "value": "Ping the bot", "inline": True},
-            {"name": " ", "value": " ", "inline": True},
-        ],
-        "footer": "DJ Music Man V2.1.2"
-    }
+    return EMBED_DJHELP.copy()
 
 def get_queue_embed():
-    return {
-        "title": "Current Queue",
-        "description": "Here are the listed songs:",
-        "fields": [
-        ],
-        "footer": "DJ Music Man"
-    }
+    return EMBED_QUEUE.copy()
 
 #region Messages
 MESSAGE_FAILED_VIDEO_INFO: Final = 'Failed to retrieve the video information.'
