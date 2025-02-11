@@ -59,6 +59,20 @@ async def join_voice_channel(musicbot,ctx) -> bool:
 async def is_playing(ctx) -> bool:
     return ctx.voice_client and ctx.voice_client.is_playing()
 
+async def play_song(ctx, queue: MusicQueue, client, url, title):
+    source = await discord.FFmpegOpusAudio.from_probe(url, **FFMPEG_OPTIONS)
+    ctx.voice_client.play(
+        source,
+        after=lambda _: client.loop.create_task(play_next(ctx, queue, client))
+    )
+
+async def is_bot_only_other_member_in_vc(ctx) -> bool:
+    if (ctx.voice_client and len(ctx.voice_client.channel.members) == 1):
+        await cm_leave(ctx)
+        await message_handler.send_info(ctx, CONST.MESSAGE_NO_USERS_IN_CHANNEL)
+        return True
+    return False
+
 @error_handling
 async def play_next(ctx, queue: MusicQueue, client):
     song = queue.get_next_song()
@@ -66,15 +80,12 @@ async def play_next(ctx, queue: MusicQueue, client):
         await idle_timer.handle_idle(ctx)
         return
 
+    if await is_bot_only_other_member_in_vc(ctx):
+        return
+
     idle_timer.clear_timer_task()
     url, title = song
-    source = await discord.FFmpegOpusAudio.from_probe(url, **FFMPEG_OPTIONS)
-    ctx.voice_client.play(
-        source,
-        after=lambda _: client.loop.create_task(play_next(ctx, queue, client))
-    )
-    current_song_info = queue.get_current_song_info()
-    await message_handler.send_success(ctx, current_song_info)
+    await play_song(ctx, queue, client, url, title)
 
 @error_handling
 async def cm_play(musicbot, ctx, search):
