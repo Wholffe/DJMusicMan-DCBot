@@ -8,6 +8,7 @@ class MusicBot(commands.Cog):
     def __init__(self, bot):
         self.client = bot
         self.queue = MusicQueue()
+        self.client.remove_command('help')
 
     @commands.command()
     async def play(self, ctx, *, search) -> None:
@@ -15,14 +16,14 @@ class MusicBot(commands.Cog):
 
     @commands.command()
     async def skip(self, ctx) -> None:
-        await cm_skip(ctx)
+        await cm_skip(self,ctx)
 
     @commands.command()
     async def ping(self, ctx) -> None:
         await cm_ping(ctx)
 
-    @commands.command()
-    async def djhelp(self, ctx) -> None:
+    @commands.command(aliases=['djhelp'])
+    async def help(self, ctx) -> None:
         await cm_djhelp(ctx)
 
     @commands.command()

@@ -2,7 +2,7 @@ from typing import Final
 from copy import deepcopy
 
 #region Info
-VERSION: Final = '2.1.3'
+VERSION: Final = '2.1.4'
 NAME: Final = 'DJ Music Man'
 FOOTER: Final = f'{NAME} {VERSION}'
 
@@ -22,12 +22,10 @@ EMBED_DJHELP = {
         {"name": "/clear", "value": "Clears the queue.", "inline": True},
         {"name": "/loop", "value": "Toggles looping of the current song.", "inline": True},
         {"name": "/rm <index>", "value": "Removes a song from the queue.", "inline": True},
-        {"name": " ", "value": " ", "inline": True},
 
         {"name": "⚙️ **Other commands**", "value": "", "inline": False},
         {"name": "/leave", "value": "Disconnects the bot from the voice channel.", "inline": True},
         {"name": "/ping", "value": "Ping the bot", "inline": True},
-        {"name": " ", "value": " ", "inline": True},
     ],
     "footer": FOOTER
 }

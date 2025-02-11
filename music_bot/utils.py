@@ -53,7 +53,7 @@ async def join_voice_channel(musicbot,ctx) -> bool:
         return False
     if not ctx.voice_client:
         await voice_channel.connect()
-        musicbot.queue.loop = False
+        musicbot.queue.set_loop(False)
     return True
 
 async def is_playing(ctx) -> bool:
@@ -99,7 +99,8 @@ async def cm_play(musicbot, ctx, search):
         await play_next(ctx, musicbot.queue, musicbot.client)
 
 @error_handling
-async def cm_skip(ctx):
+async def cm_skip(musicbot,ctx):
+    musicbot.queue.set_loop(False)
     if await is_playing(ctx):
         ctx.voice_client.stop()
         await message_handler.send_success(ctx, CONST.MESSAGE_SKIPPED_SONG)
@@ -134,6 +135,7 @@ async def cm_clear(musicbot, ctx):
 
 @error_handling
 async def cm_leave(ctx):
+    idle_timer.clear_timer_task()
     if ctx.voice_client:
         await ctx.voice_client.disconnect()
 

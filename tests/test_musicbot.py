@@ -72,10 +72,12 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
 
     async def test_skip_command(self):
         self.ctx.voice_client.is_playing.return_value = True
+        self.musicbot.queue.loop = True
 
         command = self.bot.get_command('skip')
         await command(self.ctx)
 
+        self.assertFalse(self.musicbot.queue.loop)
         self.ctx.voice_client.stop.assert_called_once()
         self.ctx.send.assert_called_once_with(f'{self.message_handler.prefix_success} {CONST.MESSAGE_SKIPPED_SONG}')
 
