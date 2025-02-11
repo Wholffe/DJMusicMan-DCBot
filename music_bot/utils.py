@@ -68,10 +68,7 @@ async def play_song(ctx, queue: MusicQueue, client, url, title):
 
 async def is_bot_only_other_member_in_vc(ctx) -> bool:
     if (ctx.voice_client and len(ctx.voice_client.channel.members) == 1):
-        await cm_leave(ctx)
-        await message_handler.send_info(ctx, CONST.MESSAGE_NO_USERS_IN_CHANNEL)
         return True
-    return False
 
 @error_handling
 async def play_next(ctx, queue: MusicQueue, client):
@@ -81,6 +78,8 @@ async def play_next(ctx, queue: MusicQueue, client):
         return
 
     if await is_bot_only_other_member_in_vc(ctx):
+        await cm_leave(ctx)
+        await message_handler.send_info(ctx, CONST.MESSAGE_NO_USERS_IN_CHANNEL)
         return
 
     idle_timer.clear_timer_task()
