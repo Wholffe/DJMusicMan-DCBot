@@ -66,6 +66,7 @@ MESSAGE_QUEUE_SHUFFLED: Final = 'Queue shuffeled.'
 MESSAGE_NO_ACTIVITY_TIMEOUT: Final = 'Bot idle for too long. Leaving the voice channel.'
 MESSAGE_PAUSED_SONG: Final = 'Paused the song.'
 MESSAGE_RESUMED_SONG: Final = 'Resumed the song.'
+MESSAGE_NO_USERS_IN_CHANNEL: Final = 'No users in the voice channel. Leaving the channel.'
 
 #region Acrions
 ACTION_PLAYING_SONG: Final = 'playing the song'

@@ -242,5 +242,27 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(self.musicbot.queue.queue), 1)
         self.assertEqual(self.musicbot.queue.queue[0][1], 'title1')
 
+    @patch('music_bot.utils.is_bot_only_member_in_vc', new_callable=AsyncMock)
+    async def test_play_next_with_other_member_in_vc(self, mock_is_bot_only_member_in_vc):
+        self.musicbot.queue.add_song('url1', 'title1')
+        self.musicbot.queue.add_song('url2', 'title2')
+        self.musicbot.queue.current_song = self.musicbot.queue.get_next_song()
+
+        mock_is_bot_only_member_in_vc.return_value = False
+        await play_next(self.ctx, self.musicbot.queue, self.musicbot.client)
+        self.ctx.voice_client.disconnect.assert_not_called()
+        self.ctx.voice_client.play.assert_called_once()
+
+    @patch('music_bot.utils.is_bot_only_member_in_vc', new_callable=AsyncMock)
+    async def test_play_next_with_no_other_member_in_vc(self, mock_is_bot_only_member_in_vc):
+        self.musicbot.queue.add_song('url1', 'title1')
+        self.musicbot.queue.add_song('url2', 'title2')
+        self.musicbot.queue.current_song = self.musicbot.queue.get_next_song()
+
+        mock_is_bot_only_member_in_vc.return_value = True
+        await play_next(self.ctx, self.musicbot.queue, self.musicbot.client)
+        self.ctx.voice_client.disconnect.assert_called_once()
+        self.ctx.voice_client.play.assert_not_called()
+
 if __name__ == '__main__':
     unittest.main()
