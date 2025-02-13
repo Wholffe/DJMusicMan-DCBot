@@ -55,3 +55,9 @@ jobs:
         REPO_NAME=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
         docker build -t ghcr.io/${REPO_NAME}:latest .
         docker push ghcr.io/${REPO_NAME}:latest
+
+    - name: Make Docker image public
+      run: |
+        ghcr_url="https://ghcr.io/v2/${REPO_NAME}"
+        curl -X PATCH -H "Authorization: Bearer ${{ secrets.GHCR_TOKEN }}" -H "Accept: application/vnd.github.v3+json" \
+        ${ghcr_url}/visibility -d '{"visibility":"public"}'
