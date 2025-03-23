@@ -1,14 +1,14 @@
 import discord
 import yt_dlp
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+from functools import lru_cache
 
 from .config import YDLP_OPTIONS,FFMPEG_OPTIONS
 from music_bot import constants as CONST
 from .message_handler import MessageHandler
 from .music_queue import MusicQueue
 from .idle_timer import IdleTimer
-import asyncio
-from concurrent.futures import ThreadPoolExecutor
-
 
 message_handler = MessageHandler()
 idle_timer = IdleTimer()
@@ -23,6 +23,7 @@ def error_handling(func):
             await message_handler.send_error(ctx,f'An error occurred while executing the command: {e}')
     return wrapper
 
+@lru_cache(maxsize=100)
 def extract_song_infos(search: str) -> list:
     try:
         with yt_dlp.YoutubeDL(YDLP_OPTIONS) as ydl:
@@ -41,10 +42,15 @@ def extract_song_infos(search: str) -> list:
     ]
     return songs
 
-async def get_song_infos(search: str) -> list:
+async def get_song_infos(searches) -> list:
+    if isinstance(searches, str):
+        searches = [searches]
+    
     loop = asyncio.get_event_loop()
-    songs = await loop.run_in_executor(executor, extract_song_infos, search)
-    return songs
+    tasks = [loop.run_in_executor(executor, extract_song_infos, search) for search in searches]
+    results = await asyncio.gather(*tasks)
+    return [song for result in results for song in result]
+
 
 async def join_voice_channel(musicbot,ctx) -> bool:
     voice_channel = ctx.author.voice.channel if ctx.author.voice else None
@@ -88,7 +94,7 @@ async def play_next(ctx, queue: MusicQueue, client):
 
 @error_handling
 async def cm_play(musicbot, ctx, search):
-    if not await join_voice_channel(musicbot,ctx):
+    if not await join_voice_channel(musicbot, ctx):
         return
 
     async with ctx.typing():
