@@ -13,7 +13,7 @@ EMBED_DJHELP = {
     "fields": [
         {"name": "🎶 **Music playback**", "value": "", "inline": False},
         {"name": "/play <search>", "value": "Plays a song from YouTube.", "inline": True},
-        {"name": "/toggle", "value": "Toggle pause|continue playback", "inline": True},
+        {"name": "/toggle | /pause", "value": "Toggle pause|continue playback", "inline": True},
         {"name": "/skip", "value": "Skips the current song.", "inline": True},
 
         {"name": "🛠️ **Queue-Management**", "value": "", "inline": False},

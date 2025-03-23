@@ -34,7 +34,7 @@ class MusicBot(commands.Cog):
     async def showq(self, ctx) -> None:
         return await cm_showq(self,ctx)
 
-    @commands.command()
+    @commands.command(aliases=['pause'])
     async def toggle(self, ctx) -> None:
         await cm_toggle(ctx)
     
