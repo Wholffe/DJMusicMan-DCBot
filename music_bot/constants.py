@@ -2,7 +2,7 @@ from typing import Final
 from copy import deepcopy
 
 #region Info
-VERSION: Final = '2.1.6'
+VERSION: Final = '2.1.7'
 NAME: Final = 'DJ Music Man'
 FOOTER: Final = f'{NAME} {VERSION}'
 
@@ -13,11 +13,12 @@ EMBED_DJHELP = {
     "fields": [
         {"name": "🎶 **Music playback**", "value": "", "inline": False},
         {"name": "/play <search>", "value": "Plays a song from YouTube.", "inline": True},
+        {"name": "/playfirst <search>", "value": "Plays a song from YouTube and adds it to the top of the queue.", "inline": True},
         {"name": "/toggle | /pause", "value": "Toggle pause|continue playback", "inline": True},
         {"name": "/skip", "value": "Skips the current song.", "inline": True},
 
         {"name": "🛠️ **Queue-Management**", "value": "", "inline": False},
-        {"name": "/showq", "value": "Shows the current queue.", "inline": True},
+        {"name": "/showq | /queue", "value": "Shows the current queue.", "inline": True},
         {"name": "/shuffle", "value": "Shuffles the queue.", "inline": True},
         {"name": "/clear", "value": "Clears the queue.", "inline": True},
         {"name": "/loop", "value": "Toggles looping of the current song.", "inline": True},

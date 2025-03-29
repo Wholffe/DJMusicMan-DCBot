@@ -59,6 +59,7 @@ async def join_voice_channel(musicbot,ctx) -> bool:
         return False
     if not ctx.voice_client:
         await voice_channel.connect()
+        musicbot.queue.clear()
         musicbot.queue.set_loop(False)
     return True
 
@@ -92,7 +93,7 @@ async def play_next(ctx, queue: MusicQueue, client):
     url, title = song
     await play_song(ctx, queue, client, url, title)
 
-async def _add_songs_to_queue(ctx, musicbot, search, add_to_front=False):
+async def _add_songs_to_queue(ctx, queue: MusicQueue, search: str, add_to_front=False):
     async with ctx.typing():
         songs = await get_song_infos(search)
         if not songs:
@@ -101,9 +102,9 @@ async def _add_songs_to_queue(ctx, musicbot, search, add_to_front=False):
 
         for song in (reversed(songs) if add_to_front else songs):
             if add_to_front:
-                musicbot.queue.add_song_first(song['url'], song['title'])
+                queue.add_song_first(song['url'], song['title'])
             else:
-                musicbot.queue.add_song(song['url'], song['title'])
+                queue.add_song(song['url'], song['title'])
 
         queue_position = "front of the queue" if add_to_front else "queue"
         if len(songs) > 1:
@@ -118,7 +119,7 @@ async def _add_songs_to_queue(ctx, musicbot, search, add_to_front=False):
 async def cm_play(musicbot, ctx, search):
     if not await join_voice_channel(musicbot, ctx):
         return
-    if not await _add_songs_to_queue(ctx, musicbot, search):
+    if not await _add_songs_to_queue(ctx, musicbot.queue, search):
         return
     if not await is_playing(ctx):
         await play_next(ctx, musicbot.queue, musicbot.client)
@@ -127,7 +128,7 @@ async def cm_play(musicbot, ctx, search):
 async def cm_playfirst(musicbot, ctx, search):
     if not await join_voice_channel(musicbot, ctx):
         return
-    if not await _add_songs_to_queue(ctx, musicbot, search, add_to_front=True):
+    if not await _add_songs_to_queue(ctx, musicbot.queue, search, add_to_front=True):
         return
     if not await is_playing(ctx):
         await play_next(ctx, musicbot.queue, musicbot.client)
