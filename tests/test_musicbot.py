@@ -51,7 +51,7 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         mock_join_voice_channel.assert_called_once_with(self.musicbot,self.ctx)
         mock_get_song_infos.assert_called_once_with('test search')
         mock_play_next.assert_called_once_with(self.ctx, self.musicbot.queue, self.musicbot.client)
-        self.ctx.send.assert_called_once_with(f'{self.message_handler.prefix_success} Added to queue: Test Song')
+        self.ctx.send.assert_called_once_with(f'{self.message_handler.prefix_success} Added to the queue: Test Song')
 
     @patch('music_bot.utils.is_playing', new_callable=AsyncMock)
     @patch('music_bot.utils.play_next', new_callable=AsyncMock)

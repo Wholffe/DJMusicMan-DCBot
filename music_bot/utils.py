@@ -92,25 +92,34 @@ async def play_next(ctx, queue: MusicQueue, client):
     url, title = song
     await play_song(ctx, queue, client, url, title)
 
-@error_handling
-async def cm_play(musicbot, ctx, search):
-    if not await join_voice_channel(musicbot, ctx):
-        return
-
+async def _add_songs_to_queue(ctx, musicbot, search, add_to_front=False):
     async with ctx.typing():
         songs = await get_song_infos(search)
         if not songs:
             await message_handler.send_error(ctx, CONST.MESSAGE_FAILED_VIDEO_INFO)
-            return
+            return False
 
-        for song in songs:
-            musicbot.queue.add_song(song['url'], song['title'])
+        for song in (reversed(songs) if add_to_front else songs):
+            if add_to_front:
+                musicbot.queue.add_song_first(song['url'], song['title'])
+            else:
+                musicbot.queue.add_song(song['url'], song['title'])
 
+        queue_position = "front of the queue" if add_to_front else "queue"
         if len(songs) > 1:
-            await message_handler.send_success(ctx, f"Added {len(songs)} songs to the queue.")
+            message = f"Added {len(songs)} songs to the {queue_position}."
         else:
-            await message_handler.send_success(ctx, f"Added to queue: {songs[0]['title']}")
+            message = f"Added to the {queue_position}: {songs[0]['title']}"
 
+        await message_handler.send_success(ctx, message)
+        return True
+
+@error_handling
+async def cm_play(musicbot, ctx, search):
+    if not await join_voice_channel(musicbot, ctx):
+        return
+    if not await _add_songs_to_queue(ctx, musicbot, search):
+        return
     if not await is_playing(ctx):
         await play_next(ctx, musicbot.queue, musicbot.client)
 
@@ -118,21 +127,8 @@ async def cm_play(musicbot, ctx, search):
 async def cm_playfirst(musicbot, ctx, search):
     if not await join_voice_channel(musicbot, ctx):
         return
-
-    async with ctx.typing():
-        songs = await get_song_infos(search)
-        if not songs:
-            await message_handler.send_error(ctx, CONST.MESSAGE_FAILED_VIDEO_INFO)
-            return
-
-        for song in reversed(songs):  # Reverse to maintain order when inserting at the start
-            musicbot.queue.add_song_first(song['url'], song['title'])
-
-        if len(songs) > 1:
-            await message_handler.send_success(ctx, f"Added {len(songs)} songs to the front of the queue.")
-        else:
-            await message_handler.send_success(ctx, f"Added to the front of the queue: {songs[0]['title']}")
-
+    if not await _add_songs_to_queue(ctx, musicbot, search, add_to_front=True):
+        return
     if not await is_playing(ctx):
         await play_next(ctx, musicbot.queue, musicbot.client)
 
