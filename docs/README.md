@@ -25,10 +25,10 @@ DJ Music Man is a simple Discord bot designed for playing music in voice channel
 3. **Execute Docker Run Script**
 
    - ***Linux***
-     - Run the script located at [start-and-update-djmusicman.sh](../scripts/linux/start-and-update-djmusicman.sh).
+     - Run the script located at [run-container.sh](../scripts/linux/run-container.sh).
 
    - ***Windows***
-     - Run the script located at [start-and-update-djmusicman.ps1](../scripts/windows/start-and-update-djmusicman.ps1).
+     - Run the script located at [run-container.ps1](../scripts/windows/run-container.ps1).
 
    ***Note: Alternative Manual Container Run***
 

@@ -23,16 +23,17 @@ class MessageHandler:
 
     async def send_embed(self, ctx, embed_dict: dict):
         embed = discord.Embed(
-            title=embed_dict.get("title", ""),
             description=embed_dict.get("description", ""),
             color=discord.Color.blurple()
         )
 
+        if embed_dict.get("title"):
+            embed.title = embed_dict["title"]
+
         for field in embed_dict.get("fields", []):
             embed.add_field(name=field.get("name", ""), value=field.get("value", ""), inline=field.get("inline", False))
 
-        if "footer" in embed_dict:
+        if embed_dict.get("footer"):
             embed.set_footer(text=embed_dict["footer"])
-        
 
         await ctx.send(embed=embed)

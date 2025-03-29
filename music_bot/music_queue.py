@@ -11,6 +11,9 @@ class MusicQueue:
     def add_song(self, url, title) -> None:
         self.queue.append((url, title))
 
+    def add_song_first(self, url, title) -> None:
+        self.queue.insert(0, (url, title))
+
     def get_next_song(self):
         if self.loop and self.current_song:
             self.queue.insert(0, self.current_song)
