@@ -1,14 +1,13 @@
+from concurrent.futures import ThreadPoolExecutor
+import asyncio
 import discord
 import yt_dlp
-import asyncio
-from concurrent.futures import ThreadPoolExecutor
-from functools import lru_cache
 
 from .config import YDLP_OPTIONS,FFMPEG_OPTIONS
-from music_bot import constants as CONST
+from .idle_timer import IdleTimer
 from .message_handler import MessageHandler
 from .music_queue import MusicQueue
-from .idle_timer import IdleTimer
+from music_bot import constants as CONST
 
 message_handler = MessageHandler()
 idle_timer = IdleTimer()
@@ -23,7 +22,6 @@ def error_handling(func):
             await message_handler.send_error(ctx,f'An error occurred while executing the command: {e}')
     return wrapper
 
-@lru_cache(maxsize=100)
 def extract_song_infos(search: str) -> list:
     try:
         with yt_dlp.YoutubeDL(YDLP_OPTIONS) as ydl:
