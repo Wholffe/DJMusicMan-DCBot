@@ -1,7 +1,8 @@
 import asyncio
 
-from .config import IDLE_TIMER
 from music_bot import constants as CONST
+
+from .config import IDLE_TIMER
 from .message_handler import MessageHandler
 
 
@@ -9,10 +10,10 @@ class IdleTimer:
     def __init__(self):
         self.message_handler = MessageHandler()
         self.current_timer = 0
-        self.max_duration_timeout = IDLE_TIMER.get('max_duration_timeout')
+        self.max_duration_timeout = IDLE_TIMER.get("max_duration_timeout")
         self.timer_task = None
 
-    async def handle_idle(self,ctx):
+    async def handle_idle(self, ctx):
         """Handles the bot's behavior when the queue is empty."""
         if not self.timer_task:
             self.timer_task = asyncio.create_task(self.start_idle_timer(ctx))
@@ -33,6 +34,6 @@ class IdleTimer:
             await ctx.voice_client.disconnect()
             await self.message_handler.send_info(ctx, CONST.MESSAGE_NO_ACTIVITY_TIMEOUT)
         self.clear_timer_task()
-    
+
     def clear_timer_task(self):
         self.timer_task = None
