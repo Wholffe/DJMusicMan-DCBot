@@ -1,21 +1,17 @@
 FFMPEG_OPTIONS = {
-  'before_options':'-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
-  'options': '-vn -b:a 192k -bufsize 64k'
+    "options": "-vn",
 }
 
 YDLP_OPTIONS = {
-    'format': 'bestaudio/best',
-    'noplaylist': True,
-    'default_search': 'ytsearch',
-    'quiet': False,
-    'skip_download': True,
-    'geo_bypass': True,
-    'concurrent_fragment_downloads': 5,
-    'max_downloads': 1,
-    'no_warnings': True,
-    'prefer_ffmpeg': True,
+    "format": "bestaudio/best",
+    "noplaylist": True,
+    "default_search": "ytsearch",
+    "quiet": False,
+    "skip_download": True,
+    "geo_bypass": True,
+    "outtmpl": "cache/%(id)s.%(ext)s",
 }
 
-IDLE_TIMER = {
-  'max_duration_timeout':180 #time in sec
-}
+IDLE_TIMER = {"max_duration_timeout": 180}
+
+CACHE_DIR = "cache"

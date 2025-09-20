@@ -1,4 +1,6 @@
 import asyncio
+import json
+import os
 from concurrent.futures import ThreadPoolExecutor
 
 import discord
@@ -15,6 +17,10 @@ message_handler = MessageHandler()
 idle_timer = IdleTimer()
 executor = ThreadPoolExecutor(max_workers=5)
 
+CACHE_DIR = "cache"
+METADATA_CACHE_FILE = os.path.join(CACHE_DIR, "metadata_cache.json")
+os.makedirs(CACHE_DIR, exist_ok=True)
+
 
 def error_handling(func):
     """Decorator to handle exceptions in commands."""
@@ -30,27 +36,66 @@ def error_handling(func):
     return wrapper
 
 
-def extract_song_infos(search: str) -> list:
+def _load_metadata_cache() -> dict:
+    if not os.path.isfile(METADATA_CACHE_FILE):
+        return {}
     try:
+        with open(METADATA_CACHE_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, IOError):
+        return {}
+
+
+def _save_metadata_cache(cache: dict):
+    with open(METADATA_CACHE_FILE, "w", encoding="utf-8") as f:
+        json.dump(cache, f, indent=4)
+
+
+def fetch_and_cache_songs(search: str) -> list:
+    metadata_cache = _load_metadata_cache()
+    info = metadata_cache.get(search)
+
+    if not info:
+        try:
+            info_opts = YDLP_OPTIONS.copy()
+            info_opts["skip_download"] = True
+            with yt_dlp.YoutubeDL(info_opts) as ydl:
+                info = ydl.extract_info(search, download=False)
+                metadata_cache[search] = info
+                _save_metadata_cache(metadata_cache)
+        except yt_dlp.utils.DownloadError:
+            return []
+
+    entries = info.get("entries", [info]) if "entries" in info else [info]
+    songs = []
+
+    for entry in entries:
+        if not entry:
+            continue
+
+        title = entry.get("title", "Unknown Title")
+
         with yt_dlp.YoutubeDL(YDLP_OPTIONS) as ydl:
-            info = ydl.extract_info(search, download=False)
-    except yt_dlp.utils.DownloadError:
-        return []
+            final_filepath = ydl.prepare_filename(entry)
 
-    entries = (
-        info.get("entries")
-        if "entries" in info and isinstance(info["entries"], list)
-        else [info]
-    )
+        if not os.path.isfile(final_filepath):
+            print(f"File '{final_filepath}' not found in cache. Downloading...")
 
-    songs = [
-        {
-            "url": entry.get("url"),
-            "title": entry.get("title"),
-        }
-        for entry in entries
-        if entry
-    ]
+            download_opts = YDLP_OPTIONS.copy()
+            download_opts["skip_download"] = False
+
+            with yt_dlp.YoutubeDL(download_opts) as ydl_dl:
+                ydl_dl.download([entry["webpage_url"]])
+        else:
+            print(f"File '{final_filepath}' loaded from cache")
+
+        songs.append(
+            {
+                "url": final_filepath,
+                "title": title,
+            }
+        )
+
     return songs
 
 
@@ -60,7 +105,7 @@ async def get_song_infos(searches) -> list:
 
     loop = asyncio.get_event_loop()
     tasks = [
-        loop.run_in_executor(executor, extract_song_infos, search)
+        loop.run_in_executor(executor, fetch_and_cache_songs, search)
         for search in searches
     ]
     results = await asyncio.gather(*tasks)
