@@ -1,5 +1,6 @@
 import json
 import os
+from typing import Dict, List, Optional
 
 import yt_dlp
 
@@ -15,12 +16,10 @@ class CacheManager:
         self._initialize_cache()
 
     def _initialize_cache(self):
-        """Creates the cache directory and loads existing metadata."""
         os.makedirs(CACHE_DIR, exist_ok=True)
         self.metadata_cache = self._load_metadata()
 
-    def _load_metadata(self) -> dict:
-        """Loads the metadata cache from a JSON file."""
+    def _load_metadata(self) -> Dict:
         if not os.path.isfile(self.METADATA_CACHE_FILE_PATH):
             return {}
         try:
@@ -30,63 +29,65 @@ class CacheManager:
             return {}
 
     def _save_metadata(self):
-        """Saves the current metadata cache to a JSON file."""
         with open(self.METADATA_CACHE_FILE_PATH, "w", encoding="utf-8") as f:
             json.dump(self.metadata_cache, f, indent=4)
 
-    def _fetch_youtube_info(self, search: str):
-        """Fetches video/playlist info from YouTube without downloading."""
-        try:
-            info_opts = YDLP_OPTIONS.copy()
-            info_opts["skip_download"] = True
-            with yt_dlp.YoutubeDL(info_opts) as ydl:
-                info = ydl.extract_info(search, download=False)
-                self.metadata_cache[search] = info
-                self._save_metadata()
-                return info
-        except yt_dlp.utils.DownloadError:
-            return None
-
-    def _download_song_if_missing(self, entry: dict) -> str:
-        """Downloads the audio file if it's not already in the cache."""
-        with yt_dlp.YoutubeDL(YDLP_OPTIONS) as ydl:
-            filepath = ydl.prepare_filename(entry)
-
-        if os.path.isfile(filepath):
-            print(f"File '{filepath}' loaded from cache.")
-            return filepath
-
-        print(f"File '{filepath}' not found. Downloading...")
-        download_opts = YDLP_OPTIONS.copy()
-        download_opts["skip_download"] = False
-        with yt_dlp.YoutubeDL(download_opts) as ydl_dl:
-            ydl_dl.download([entry["webpage_url"]])
-        return filepath
-
-    def get_songs(self, search: str) -> list:
-        """
-        Main method to get song data.
-        It handles fetching metadata and downloading audio files.
-        """
-        info = self.metadata_cache.get(search)
-        if not info:
-            info = self._fetch_youtube_info(search)
-            if not info:
-                return []
-
-        entries = info.get("entries", [info])
+    def _process_entries(self, entries: List[Dict]) -> List[Dict[str, str]]:
+        """Builds a list of songs from entries, ensuring files are downloaded."""
         songs = []
-
         for entry in entries:
             if not entry:
                 continue
 
-            final_filepath = self._download_song_if_missing(entry)
-            songs.append(
-                {
-                    "url": final_filepath,
-                    "title": entry.get("title", "Unknown Title"),
-                }
-            )
-
+            filepath = self._download_song_if_missing(entry)
+            if filepath:
+                songs.append(
+                    {
+                        "url": filepath,
+                        "title": entry.get("title", "Unknown Title"),
+                    }
+                )
         return songs
+
+    def _download_song_if_missing(self, entry: Dict) -> Optional[str]:
+        """Gets the filepath for an entry, downloading the file if it doesn't exist."""
+        with yt_dlp.YoutubeDL(YDLP_OPTIONS) as ydl:
+            filepath = ydl.prepare_filename(entry)
+
+        if os.path.isfile(filepath):
+            return filepath
+
+        download_opts = YDLP_OPTIONS.copy()
+        download_opts["skip_download"] = False
+        with yt_dlp.YoutubeDL(download_opts) as ydl_dl:
+            ydl_dl.download([entry["webpage_url"]])
+
+        return filepath
+
+    def _fetch_and_cache_new_song(self, search: str) -> Optional[Dict]:
+        """Fetches info and downloads a new song in one step, then caches it."""
+        opts = YDLP_OPTIONS.copy()
+        opts["skip_download"] = False
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            info = ydl.extract_info(search, download=True)
+
+        self.metadata_cache[search] = info
+        self._save_metadata()
+        return info
+
+    def get_songs(self, search: str) -> List[Dict[str, str]]:
+        """
+        Main method to get song data using guard clauses for clarity.
+        """
+        if search in self.metadata_cache:
+            info = self.metadata_cache[search]
+            entries = info.get("entries", [info])
+            return self._process_entries(entries)
+
+        info = self._fetch_and_cache_new_song(search)
+
+        if not info:
+            return []
+
+        entries = info.get("entries", [info])
+        return self._process_entries(entries)
