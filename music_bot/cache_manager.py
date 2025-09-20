@@ -4,7 +4,7 @@ from typing import Dict, List, Optional
 
 import yt_dlp
 
-from .config import CACHE_DIR, YDLP_OPTIONS
+from .config import CACHE_DIR, MAX_CACHE_FILES, YDLP_OPTIONS
 
 
 class CacheManager:
@@ -31,6 +31,40 @@ class CacheManager:
     def _save_metadata(self):
         with open(self.METADATA_CACHE_FILE_PATH, "w", encoding="utf-8") as f:
             json.dump(self.metadata_cache, f, indent=4)
+
+    def _prune_metadata(self, full_info: Dict) -> Dict:
+        """Reduces the full yt-dlp metadata to only the essential keys."""
+
+        def get_essentials(entry: Dict) -> Dict:
+            return {
+                "id": entry.get("id"),
+                "title": entry.get("title"),
+                "ext": entry.get("ext"),
+                "webpage_url": entry.get("webpage_url"),
+            }
+
+        if "entries" in full_info:
+            pruned_entries = [get_essentials(e) for e in full_info["entries"]]
+            return {"entries": pruned_entries}
+        else:
+            return get_essentials(full_info)
+
+    def _enforce_cache_limit(self):
+        """If the cache is over size, removes the oldest entries (FIFO)."""
+        while len(self.metadata_cache) > MAX_CACHE_FILES:
+            oldest_key = next(iter(self.metadata_cache))
+            oldest_info = self.metadata_cache[oldest_key]
+
+            entries_to_delete = oldest_info.get("entries", [oldest_info])
+            with yt_dlp.YoutubeDL(YDLP_OPTIONS) as ydl:
+                for entry in entries_to_delete:
+                    filepath = ydl.prepare_filename(entry)
+                    if os.path.isfile(filepath):
+                        os.remove(filepath)
+
+            del self.metadata_cache[oldest_key]
+
+        self._save_metadata()
 
     def _process_entries(self, entries: List[Dict]) -> List[Dict[str, str]]:
         """Builds a list of songs from entries, ensuring files are downloaded."""
@@ -71,9 +105,10 @@ class CacheManager:
         with yt_dlp.YoutubeDL(opts) as ydl:
             info = ydl.extract_info(search, download=True)
 
-        self.metadata_cache[search] = info
-        self._save_metadata()
-        return info
+        pruned_info = self._prune_metadata(info)
+        self.metadata_cache[search] = pruned_info
+        self._enforce_cache_limit()
+        return pruned_info
 
     def get_songs(self, search: str) -> List[Dict[str, str]]:
         """

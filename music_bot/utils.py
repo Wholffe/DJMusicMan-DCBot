@@ -20,9 +20,19 @@ executor = ThreadPoolExecutor(max_workers=5)
 def error_handling(func):
     """Decorator to handle exceptions in commands."""
 
-    async def wrapper(ctx, *args, **kwargs):
+    async def wrapper(*args, **kwargs):
+        ctx = None
+        for arg in args:
+            if isinstance(arg, discord.ext.commands.Context):
+                ctx = arg
+                break
+
+        if not ctx:
+            await func(*args, **kwargs)
+            return
+
         try:
-            await func(ctx, *args, **kwargs)
+            await func(*args, **kwargs)
         except Exception as e:
             await message_handler.send_error(
                 ctx, f"An error occurred while executing the command: {e}"
