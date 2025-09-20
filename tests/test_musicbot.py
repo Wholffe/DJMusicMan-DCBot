@@ -376,6 +376,40 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         mock_clear_timer_task.assert_called_once()
         mock_send_success.assert_awaited_with(self.ctx, CONST.MESSAGE_BOT_RESET)
 
+    @patch("music_bot.utils.join_voice_channel", new_callable=AsyncMock)
+    async def test_play_fails_if_user_not_in_voice_channel(
+        self, mock_join_voice_channel
+    ):
+        mock_join_voice_channel.return_value = False
+
+        command = self.bot.get_command("play")
+        await command(self.ctx, search="test search")
+
+        mock_join_voice_channel.assert_called_once_with(self.musicbot, self.ctx)
+        self.ctx.send.assert_not_called()
+
+    async def test_skip_when_not_playing(self):
+        self.ctx.voice_client.is_playing.return_value = False
+
+        command = self.bot.get_command("skip")
+        await command(self.ctx)
+
+        self.ctx.voice_client.stop.assert_not_called()
+        self.ctx.send.assert_not_called()
+
+    @patch("music_bot.utils.idle_timer.clear_timer_task")
+    async def test_command_error_handling(self, mock_clear_timer_task):
+        error_message = "A critical failure occurred"
+        mock_clear_timer_task.side_effect = Exception(error_message)
+
+        command = self.bot.get_command("leave")
+        await command(self.ctx)
+
+        self.ctx.send.assert_called_once()
+        embed = self.ctx.send.call_args[1]["embed"]
+        self.assertIn("An error occurred", embed.description)
+        self.assertIn(error_message, embed.description)
+
 
 if __name__ == "__main__":
     unittest.main()
