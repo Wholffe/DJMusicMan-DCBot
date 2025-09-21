@@ -22,13 +22,40 @@ DJ Music Man is a simple Discord bot designed for playing music in voice channel
    - Make sure to replace `your-discord-token` with your actual Discord bot token.
 
 ### Installation via Docker (recommended)
-3. **Execute Docker Run Script**
+3. **Cache-Ordner als Volume mappen (empfohlen für persistente Downloads)**
 
-   - ***Linux***
-     - Run the script located at [run-container.sh](../scripts/linux/run-container.sh).
+   - Erstelle den Cache-Ordner und vergebe Schreibrechte:
+     ```bash
+     mkdir -p cache
+     chmod 777 cache
+     ```
 
-   - ***Windows***
-     - Run the script located at [run-container.ps1](../scripts/windows/run-container.ps1).
+   - Starte den Container mit Volume-Mapping:
+     ```bash
+     docker run -d \
+       --name djmusicman \
+       --env-file .env \
+       -v "$(pwd)/cache:/app/cache" \
+       --restart unless-stopped \
+       djmusicman
+     ```
+
+   - Alternativ mit dem bereitgestellten Skript:
+     - ***Linux:***
+       ```bash
+       ./scripts/linux/run-container.sh
+       ```
+     - ***Windows:***
+       ```powershell
+       .\scripts\windows\run-container.ps1
+       ```
+
+   **Hinweis:**  
+   Die Parameter `MAX_CACHE_FILES` und `IDLE_TIMER` können optional in der `.env` gesetzt werden:
+   ```
+   MAX_CACHE_FILES=100
+   IDLE_TIMER=180
+   ```
 
    ***Note: Alternative Manual Container Run***
 
