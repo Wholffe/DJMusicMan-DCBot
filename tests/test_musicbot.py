@@ -24,16 +24,20 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         self.idle_timer = IdleTimer()
         await self.bot.add_cog(self.musicbot)
 
-        self.ctx = MagicMock()
+        self.ctx = MagicMock(spec=commands.Context)
+        self.ctx.author = MagicMock()
         self.ctx.author.voice = MagicMock()
         self.ctx.author.voice.channel = MagicMock()
         self.ctx.voice_client = MagicMock()
         self.ctx.voice_client.disconnect = AsyncMock()
         self.ctx.voice_client.stop = MagicMock()
-        self.ctx.voice_client.pause = AsyncMock()
-        self.ctx.voice_client.resume = AsyncMock()
+
+        self.ctx.voice_client.pause = MagicMock()
+        self.ctx.voice_client.resume = MagicMock()
+
         self.ctx.voice_client.is_playing = MagicMock(return_value=True)
         self.ctx.send = AsyncMock()
+        self.ctx.bot = self.bot
         self.musicbot.queue = MusicQueue()
 
     @patch("music_bot.utils.is_playing", new_callable=AsyncMock)
@@ -136,13 +140,20 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(embed.description, CONST.MESSAGE_SKIPPED_SONG)
 
     async def test_ping_command(self):
-        self.ctx.bot.latency = 0.123
-        command = self.bot.get_command("ping")
-        await command(self.ctx)
-        self.ctx.send.assert_called_once()
-        embed = self.ctx.send.call_args[1]["embed"]
-        self.assertFalse(embed.title)
-        self.assertRegex(embed.description, r"ping: \d+ms")
+        from unittest.mock import PropertyMock
+
+        with patch.object(
+            commands.Bot, "latency", new_callable=PropertyMock
+        ) as mock_latency:
+            mock_latency.return_value = 0.123
+
+            command = self.bot.get_command("ping")
+            await command(self.ctx)
+
+            self.ctx.send.assert_called_once()
+            embed = self.ctx.send.call_args[1]["embed"]
+            self.assertFalse(embed.title)
+            self.assertEqual(embed.description, "ping: 123ms")
 
     async def test_djhelp_command(self):
         command = self.bot.get_command("djhelp")
