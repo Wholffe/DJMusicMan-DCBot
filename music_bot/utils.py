@@ -6,6 +6,7 @@ import discord
 from music_bot import constants as CONST
 
 from .cache_manager import CacheManager
+from .command_handler import CommandHandler
 from .config import FFMPEG_OPTIONS
 from .idle_timer import IdleTimer
 from .message_handler import MessageHandler
@@ -14,31 +15,8 @@ from .music_queue import MusicQueue
 message_handler = MessageHandler()
 idle_timer = IdleTimer()
 cache_manager = CacheManager()
+command_handler = CommandHandler(message_handler)
 executor = ThreadPoolExecutor(max_workers=5)
-
-
-def error_handling(func):
-    """Decorator to handle exceptions in commands."""
-
-    async def wrapper(*args, **kwargs):
-        ctx = None
-        for arg in args:
-            if isinstance(arg, discord.ext.commands.Context):
-                ctx = arg
-                break
-
-        if not ctx:
-            await func(*args, **kwargs)
-            return
-
-        try:
-            await func(*args, **kwargs)
-        except Exception as e:
-            await message_handler.send_error(
-                ctx, f"An error occurred while executing the command: {e}"
-            )
-
-    return wrapper
 
 
 async def get_song_infos(searches) -> list:
@@ -87,7 +65,7 @@ async def is_bot_only_member_in_vc(ctx) -> bool:
         return True
 
 
-@error_handling
+@command_handler.handle_errors
 async def play_next(ctx, queue: MusicQueue, client):
     song = queue.get_next_song()
     if queue.is_empty() and (not song):
@@ -127,7 +105,7 @@ async def _add_songs_to_queue(ctx, queue: MusicQueue, search: str, add_to_front=
         return True
 
 
-@error_handling
+@command_handler.handle_errors
 async def cm_play(musicbot, ctx, search):
     if not await join_voice_channel(musicbot, ctx):
         return
@@ -137,7 +115,7 @@ async def cm_play(musicbot, ctx, search):
         await play_next(ctx, musicbot.queue, musicbot.client)
 
 
-@error_handling
+@command_handler.handle_errors
 async def cm_playfirst(musicbot, ctx, search):
     if not await join_voice_channel(musicbot, ctx):
         return
@@ -147,7 +125,7 @@ async def cm_playfirst(musicbot, ctx, search):
         await play_next(ctx, musicbot.queue, musicbot.client)
 
 
-@error_handling
+@command_handler.handle_errors
 async def cm_skip(musicbot, ctx):
     musicbot.queue.set_loop(False)
     if await is_playing(ctx):
@@ -155,7 +133,7 @@ async def cm_skip(musicbot, ctx):
         await message_handler.send_success(ctx, CONST.MESSAGE_SKIPPED_SONG)
 
 
-@error_handling
+@command_handler.handle_errors
 async def cm_showq(musicbot, ctx):
     if not musicbot.queue.current_song:
         await message_handler.send_info(ctx, CONST.MESSAGE_QUEUE_EMPTY)
@@ -193,20 +171,20 @@ async def cm_showq(musicbot, ctx):
     await message_handler.send_custom(ctx, queue_embed)
 
 
-@error_handling
+@command_handler.handle_errors
 async def cm_clear(musicbot, ctx):
     musicbot.queue.clear()
     await message_handler.send_success(ctx, CONST.MESSAGE_QUEUE_CLEARED)
 
 
-@error_handling
+@command_handler.handle_errors
 async def cm_leave(ctx):
     idle_timer.clear_timer_task()
     if ctx.voice_client:
         await ctx.voice_client.disconnect()
 
 
-@error_handling
+@command_handler.handle_errors
 async def cm_toggle(ctx):
     if await is_playing(ctx):
         ctx.voice_client.pause()
@@ -216,13 +194,13 @@ async def cm_toggle(ctx):
         await message_handler.send_success(ctx, CONST.MESSAGE_RESUMED_SONG)
 
 
-@error_handling
+@command_handler.handle_errors
 async def cm_djhelp(ctx) -> None:
     embed_dict = CONST.get_djhelp_embed()
     await message_handler.send_custom(ctx, embed_dict)
 
 
-@error_handling
+@command_handler.handle_errors
 async def cm_ping(ctx) -> None:
     latency_ms = round(ctx.bot.latency * 1000)
 
@@ -230,13 +208,13 @@ async def cm_ping(ctx) -> None:
     await message_handler._send_embed(ctx, message=f"ping: {latency_ms}ms", color=color)
 
 
-@error_handling
+@command_handler.handle_errors
 async def cm_shuffle(musicbot, ctx) -> None:
     musicbot.queue.shuffle_queue()
     await message_handler.send_success(ctx, CONST.MESSAGE_QUEUE_SHUFFLED)
 
 
-@error_handling
+@command_handler.handle_errors
 async def cm_loop(musicbot, ctx) -> None:
     musicbot.queue.toggle_loop()
     await message_handler.send_success(
@@ -244,7 +222,7 @@ async def cm_loop(musicbot, ctx) -> None:
     )
 
 
-@error_handling
+@command_handler.handle_errors
 async def cm_remove(musicbot, ctx, index) -> None:
     removed_song = musicbot.queue.remove_song(index - 1)  # 1-based index
     if removed_song:
@@ -255,7 +233,7 @@ async def cm_remove(musicbot, ctx, index) -> None:
         await message_handler.send_error(ctx, f"Invalid queue number: {index}")
 
 
-@error_handling
+@command_handler.handle_errors
 async def cm_reset(musicbot, ctx) -> None:
     if ctx.voice_client:
         await ctx.voice_client.disconnect(force=True)
