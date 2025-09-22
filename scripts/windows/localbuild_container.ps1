@@ -1,22 +1,25 @@
-$DOCKER_IMAGE_NAME = "djmusicman"
-$SCRIPT_PATH = $PSScriptRoot
-$ROOT_PATH = Join-Path -Path $SCRIPT_PATH -ChildPath "..\.."
-$cachePath = "$ROOT_PATH\cache"
+$dockerImageName = "djmusicman"
+$scriptPath = $PSScriptRoot
+$rootPath = (Get-Item $scriptPath).parent.parent.FullName
+$cachePath = Join-Path -Path $rootPath -ChildPath "cache"
 
-Set-Location -Path $ROOT_PATH
+Set-Location -Path $rootPath
 
-git pull origin main --force
+# git pull origin main --force
 
-docker stop $DOCKER_IMAGE_NAME
-docker rm $DOCKER_IMAGE_NAME
-docker build -t $DOCKER_IMAGE_NAME .
+if (-not (Test-Path -Path $cachePath)) {
+    New-Item -ItemType Directory -Path $cachePath
+}
+
+docker stop $dockerImageName
+docker rm $dockerImageName
+
+docker build -t $dockerImageName .
 docker run -d `
-    --name $DOCKER_IMAGE_NAME `
+    --name $dockerImageName `
     --env-file .env `
-    -e MAX_CACHE_FILES=${env:MAX_CACHE_FILES} `
-    -e IDLE_TIMER=${env:IDLE_TIMER} `
     -v "${cachePath}:/app/cache" `
     --restart unless-stopped `
-    $DOCKER_IMAGE_NAME
+    $dockerImageName
 
 docker image prune -f

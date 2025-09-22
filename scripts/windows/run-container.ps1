@@ -1,27 +1,23 @@
 $containerName = "djmusicman"
-$cachePath = "$PWD\cache"
+$image = "ghcr.io/wholffe/djmusicman-dcbot:latest"
 
-$envVars = Get-Content -Path ".env" | ForEach-Object {
-    $name, $value = $_ -split '='
-    [PSCustomObject]@{ Name = $name; Value = $value }
+$scriptPath = $PSScriptRoot
+$cachePath = Join-Path -Path $scriptPath -ChildPath "cache"
+
+if (-not (Test-Path -Path $cachePath)) {
+    New-Item -ItemType Directory -Path $cachePath
 }
 
-foreach ($envVar in $envVars) {
-    if ($envVar.Name -eq "DISCORD_TOKEN") {
-        $env:DISCORD_TOKEN = $envVar.Value
-    }
-    if ($envVar.Name -eq "MAX_CACHE_FILES") {
-        $env:MAX_CACHE_FILES = $envVar.Value
-    }
-    if ($envVar.Name -eq "IDLE_TIMER") {
-        $env:IDLE_TIMER = $envVar.Value
-    }
-}
+docker pull $image
 
-docker pull ghcr.io/wholffe/djmusicman-dcbot:latest
-docker run --name $containerName `
-    -e DISCORD_TOKEN=$env:DISCORD_TOKEN `
-    -e MAX_CACHE_FILES=${env:MAX_CACHE_FILES} `
-    -e IDLE_TIMER=${env:IDLE_TIMER} `
+docker stop $containerName -ErrorAction SilentlyContinue
+docker rm $containerName -ErrorAction SilentlyContinue
+
+docker run -d `
+    --name $containerName `
+    --env-file .env `
     -v "${cachePath}:/app/cache" `
-    ghcr.io/wholffe/djmusicman-dcbot:latest
+    --restart unless-stopped `
+    $image
+
+docker image prune -f

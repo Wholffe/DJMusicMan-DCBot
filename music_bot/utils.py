@@ -246,8 +246,9 @@ async def cm_reset(musicbot, ctx) -> None:
 
 
 def get_latency_color(ms: int) -> discord.Color:
-    ms = max(0, min(ms, 500))
-    ratio = ms / 500
+    max_ms = 500
+    ms = max(0, min(ms, max_ms))
+    ratio = ms / max_ms
 
     green = (67, 181, 129)
     red = (240, 71, 71)

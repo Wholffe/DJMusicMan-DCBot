@@ -418,8 +418,10 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
 
         self.ctx.send.assert_called_once()
         embed = self.ctx.send.call_args[1]["embed"]
-        self.assertIn("An error occurred", embed.description)
-        self.assertIn(error_message, embed.description)
+
+        expected_description = f'Command "cm_leave" failed: {error_message}'
+        self.assertEqual(embed.description, expected_description)
+        self.assertEqual(embed.color, discord.Color.red())
 
 
 if __name__ == "__main__":

@@ -20,7 +20,8 @@ class CommandHandler:
                 await func(ctx, *args, **kwargs)
             except Exception as e:
                 await self.message_handler.send_error(
-                    ctx, f"An error occurred while executing the command: {e}"
+                    ctx,
+                    f'Command "{func.__name__}" failed: {e}',
                 )
 
         return wrapper

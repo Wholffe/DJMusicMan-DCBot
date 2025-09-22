@@ -15,7 +15,7 @@ DJ Music Man is a simple Discord bot designed for playing music in voice channel
    ```
 
 2. **Set Up Environment Variables**
-   - Create a `.env` file in the root directory:
+   - Create a `.env` file inside the project directory
    ```plaintext
    DISCORD_TOKEN=your-discord-token
    ```
