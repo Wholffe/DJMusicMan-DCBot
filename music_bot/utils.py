@@ -265,6 +265,11 @@ async def cm_reset(musicbot, ctx) -> None:
 
 @command_handler.handle_errors
 async def cm_clear_cache(ctx) -> None:
+    if ctx.voice_client:
+        await message_handler.send_error(
+            ctx, CONST.MESSAGE_CANNOT_CLEAR_CACHE_WHILE_CONNECTED
+        )
+        return
     deleted_files, total_size_mb = cache_manager.clear_cache()
     await message_handler.send_success(
         ctx,

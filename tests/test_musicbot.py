@@ -423,6 +423,37 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(embed.description, expected_description)
         self.assertEqual(embed.color, discord.Color.red())
 
+    @patch("music_bot.utils.cache_manager.clear_cache")
+    async def test_clear_cache_succeeds_when_disconnected(self, mock_clear_cache):
+        self.ctx.voice_client = None
+        mock_clear_cache.return_value = (10, 50.5)
+
+        command = self.bot.get_command("clear_cache")
+        await command(self.ctx)
+
+        mock_clear_cache.assert_called_once()
+        self.ctx.send.assert_called_once()
+        embed = self.ctx.send.call_args[1]["embed"]
+
+        self.assertEqual(
+            embed.description, "Cleared cache: Deleted 10 files, freeing 50.5 MB."
+        )
+        self.assertEqual(embed.color, discord.Color.green())
+
+    @patch("music_bot.utils.cache_manager.clear_cache")
+    async def test_clear_cache_fails_while_connected(self, mock_clear_cache):
+        command = self.bot.get_command("clear_cache")
+        await command(self.ctx)
+
+        mock_clear_cache.assert_not_called()
+        self.ctx.send.assert_called_once()
+        embed = self.ctx.send.call_args[1]["embed"]
+
+        self.assertEqual(
+            embed.description, CONST.MESSAGE_CANNOT_CLEAR_CACHE_WHILE_CONNECTED
+        )
+        self.assertEqual(embed.color, discord.Color.red())
+
 
 if __name__ == "__main__":
     unittest.main()
