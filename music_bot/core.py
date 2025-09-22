@@ -3,6 +3,7 @@ from discord.ext import commands
 from .music_queue import MusicQueue
 from .utils import (
     cm_clear,
+    cm_clear_cache,
     cm_djhelp,
     cm_leave,
     cm_loop,
@@ -75,3 +76,7 @@ class MusicBot(commands.Cog):
     @commands.command()
     async def reset(self, ctx) -> None:
         await cm_reset(self, ctx)
+
+    @commands.command()
+    async def clear_cache(self, ctx) -> None:
+        await cm_clear_cache(ctx)

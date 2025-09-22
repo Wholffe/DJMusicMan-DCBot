@@ -12,6 +12,7 @@ from .idle_timer import IdleTimer
 from .message_handler import MessageHandler
 from .music_queue import MusicQueue
 
+# region Global Instances
 message_handler = MessageHandler()
 idle_timer = IdleTimer()
 cache_manager = CacheManager()
@@ -19,6 +20,7 @@ command_handler = CommandHandler(message_handler)
 executor = ThreadPoolExecutor(max_workers=5)
 
 
+# region Asynchronous Helpers
 async def get_song_infos(searches) -> list:
     """Asynchronously fetches song information using the CacheManager."""
     if isinstance(searches, str):
@@ -171,6 +173,22 @@ async def cm_showq(musicbot, ctx):
     await message_handler.send_custom(ctx, queue_embed)
 
 
+def get_latency_color(ms: int) -> discord.Color:
+    max_ms = 500
+    ms = max(0, min(ms, max_ms))
+    ratio = ms / max_ms
+
+    green = (67, 181, 129)
+    red = (240, 71, 71)
+
+    r = int(green[0] + (red[0] - green[0]) * ratio)
+    g = int(green[1] + (red[1] - green[1]) * ratio)
+    b = int(green[2] + (red[2] - green[2]) * ratio)
+
+    return discord.Color.from_rgb(r, g, b)
+
+
+# region CM_Commands
 @command_handler.handle_errors
 async def cm_clear(musicbot, ctx):
     musicbot.queue.clear()
@@ -245,16 +263,10 @@ async def cm_reset(musicbot, ctx) -> None:
     await message_handler.send_success(ctx, CONST.MESSAGE_BOT_RESET)
 
 
-def get_latency_color(ms: int) -> discord.Color:
-    max_ms = 500
-    ms = max(0, min(ms, max_ms))
-    ratio = ms / max_ms
-
-    green = (67, 181, 129)
-    red = (240, 71, 71)
-
-    r = int(green[0] + (red[0] - green[0]) * ratio)
-    g = int(green[1] + (red[1] - green[1]) * ratio)
-    b = int(green[2] + (red[2] - green[2]) * ratio)
-
-    return discord.Color.from_rgb(r, g, b)
+@command_handler.handle_errors
+async def cm_clear_cache(ctx) -> None:
+    deleted_files, total_size_mb = cache_manager.clear_cache()
+    await message_handler.send_success(
+        ctx,
+        f"Cleared cache: Deleted {deleted_files} files, freeing {total_size_mb} MB.",
+    )

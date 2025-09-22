@@ -14,12 +14,12 @@ EMBED_DJHELP = {
         {"name": "🎶 **Music playback**", "value": "", "inline": False},
         {
             "name": "/play <search>",
-            "value": "Plays a song from YouTube.",
+            "value": "Plays a song from YouTube",
             "inline": True,
         },
         {
             "name": "/playfirst <search>",
-            "value": "Plays a song from YouTube and adds it to the top of the queue.",
+            "value": "Plays a song from YouTube and adds it to the top of the queue",
             "inline": True,
         },
         {
@@ -38,21 +38,23 @@ EMBED_DJHELP = {
         {"name": "/clear", "value": "Clears the queue.", "inline": True},
         {
             "name": "/loop",
-            "value": "Toggles looping of the current song.",
+            "value": "Toggles looping of the current song",
             "inline": True,
         },
         {
             "name": "/rm <index>",
-            "value": "Removes a song from the queue.",
+            "value": "Removes a song from the queue",
             "inline": True,
         },
         {"name": "⚙️ **Other commands**", "value": "", "inline": False},
         {
             "name": "/leave",
-            "value": "Disconnects the bot from the voice channel.",
+            "value": "Disconnects the bot from the voice channel",
             "inline": True,
         },
+        {"name": "/clear_cache", "value": "Clears the song cache", "inline": True},
         {"name": "/ping", "value": "Ping the bot", "inline": True},
+        {"name": "/reset", "value": "Resets the bot", "inline": True},
     ],
     "footer": FOOTER,
 }
@@ -74,18 +76,6 @@ def get_queue_embed():
 
 # region Messages
 MESSAGE_FAILED_VIDEO_INFO: Final = "Failed to retrieve the video information."
-MESSAGE_HELP: Final = (
-    "Available commands:\n"
-    "/clear - Clear the current queue\n"
-    "/leave - Leave the voice channel"
-    "/loop - Toggle loop mode for the current song\n"
-    "/ping - Ping the bot\n"
-    "/play <search> - Play a song from YouTube\n"
-    "/showq - Show the current queue\n"
-    "/shuffle - Shuffle the queue order\n"
-    "/skip - Skip the current song\n"
-    "/toggle - Toggle pause|continue playback\n"
-)
 MESSAGE_NOT_CONNECTED: Final = "You are not connected to a voice channel."
 MESSAGE_PONG: Final = "pong"
 MESSAGE_QUEUE_EMPTY: Final = "The queue is empty."

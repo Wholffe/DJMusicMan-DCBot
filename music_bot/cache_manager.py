@@ -111,9 +111,7 @@ class CacheManager:
         return pruned_info
 
     def get_songs(self, search: str) -> List[Dict[str, str]]:
-        """
-        Main method to get song data using guard clauses for clarity.
-        """
+        """Main method to get song data using guard clauses for clarity."""
         if search in self.metadata_cache:
             info = self.metadata_cache[search]
             entries = info.get("entries", [info])
@@ -126,3 +124,24 @@ class CacheManager:
 
         entries = info.get("entries", [info])
         return self._process_entries(entries)
+
+    def clear_cache(self) -> tuple[int, float]:
+        """Clears the entire cache and returns the number of files deleted and total size freed in MB."""
+        total_size = 0
+        deleted_files = 0
+
+        for search in list(self.metadata_cache.keys()):
+            info = self.metadata_cache[search]
+            entries_to_delete = info.get("entries", [info])
+            with yt_dlp.YoutubeDL(YDLP_OPTIONS) as ydl:
+                for entry in entries_to_delete:
+                    filepath = ydl.prepare_filename(entry)
+                    if os.path.isfile(filepath):
+                        total_size += os.path.getsize(filepath)
+                        os.remove(filepath)
+                        deleted_files += 1
+
+            del self.metadata_cache[search]
+
+        self._save_metadata()
+        return deleted_files, round(total_size / (1024 * 1024), 2)
