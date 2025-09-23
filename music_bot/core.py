@@ -1,5 +1,8 @@
 from discord.ext import commands
 
+from music_bot.constants import VERSION
+from music_bot.logger import logger
+
 from .music_queue import MusicQueue
 from .utils import (
     cm_clear,
@@ -24,6 +27,10 @@ class MusicBot(commands.Cog):
         self.client = bot
         self.queue = MusicQueue()
         self.client.remove_command("help")
+
+    @commands.Cog.listener()
+    async def on_ready(self):
+        logger.info(f"{self.client.user} is ready. Version: {VERSION}")
 
     @commands.command()
     async def play(self, ctx, *, search) -> None:

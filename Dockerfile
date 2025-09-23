@@ -12,7 +12,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY music_bot/ /app/music_bot/
 COPY main.py /app/
 
-VOLUME ["/app/cache"]
+RUN mkdir /data
+VOLUME ["/data"]
 
 ENV MAX_CACHE_FILES=100
 ENV IDLE_TIMER=180

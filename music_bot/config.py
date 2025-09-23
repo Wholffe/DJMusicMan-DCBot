@@ -8,6 +8,9 @@ def get_env_int(varname, default):
     return int(val)
 
 
+DATA_DIR = "/data"
+CACHE_DIR = os.path.join(DATA_DIR, "cache")
+
 FFMPEG_OPTIONS = {
     "options": "-vn",
 }
@@ -19,12 +22,10 @@ YDLP_OPTIONS = {
     "quiet": False,
     "skip_download": True,
     "geo_bypass": True,
-    "outtmpl": "/app/cache/%(id)s.%(ext)s",
+    "outtmpl": os.path.join(CACHE_DIR, "%(id)s.%(ext)s"),
     "cookiefile": "cookies.txt",
 }
 
 IDLE_TIMER = {"max_duration_timeout": get_env_int("IDLE_TIMER", 180)}
-
-CACHE_DIR = "/app/cache"
 
 MAX_CACHE_FILES = get_env_int("MAX_CACHE_FILES", 100)

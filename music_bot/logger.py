@@ -1,13 +1,18 @@
 import functools
 import logging
 import logging.handlers
+import os
 from typing import Callable
 
-LOG_FILE = "music_bot.log"
+from music_bot.config import DATA_DIR
+
+LOG_FILE = os.path.join(DATA_DIR, "music_bot.log")
 
 
 def setup_logger():
     """Configures and returns a logger instance."""
+    os.makedirs(DATA_DIR, exist_ok=True)
+
     logger = logging.getLogger("MusicBot")
     logger.setLevel(logging.INFO)
     logger.propagate = False
