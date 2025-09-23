@@ -23,12 +23,12 @@ class IdleTimer:
         """Starts an idle timer to disconnect the bot after inactivity."""
         self.current_timer = 0
 
-        while ctx.voice_client and (self.current_timer <= self.max_duration_timeout):
-            await asyncio.sleep(1)
+        while ctx.voice_client and (self.current_timer < self.max_duration_timeout):
             if ctx.voice_client.is_playing():
                 self.clear_timer_task()
                 return
             self.current_timer += 1
+            await asyncio.sleep(1)
 
         if ctx.voice_client:
             await ctx.voice_client.disconnect()
