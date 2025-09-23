@@ -9,6 +9,7 @@ from .cache_manager import CacheManager
 from .command_handler import CommandHandler
 from .config import FFMPEG_OPTIONS
 from .idle_timer import IdleTimer
+from .logger import log_command
 from .message_handler import MessageHandler
 from .music_queue import MusicQueue
 
@@ -108,6 +109,7 @@ async def _add_songs_to_queue(ctx, queue: MusicQueue, search: str, add_to_front=
 
 
 @command_handler.handle_errors
+@log_command
 async def cm_play(musicbot, ctx, search):
     if not await join_voice_channel(musicbot, ctx):
         return

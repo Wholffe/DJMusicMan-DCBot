@@ -1,3 +1,4 @@
+import logging
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -18,6 +19,7 @@ intents.voice_states = True
 
 class TestMusicBot(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
+        logging.getLogger("MusicBot").setLevel(logging.CRITICAL + 1)
         self.bot = commands.Bot(command_prefix="/", intents=intents)
         self.musicbot = MusicBot(self.bot)
         self.message_handler = MessageHandler()
@@ -453,6 +455,16 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
             embed.description, CONST.MESSAGE_CANNOT_CLEAR_CACHE_WHILE_CONNECTED
         )
         self.assertEqual(embed.color, discord.Color.red())
+
+    def test_logger_writes_info_message(self):
+        from music_bot.logger import logger
+
+        test_message = "test info message"
+
+        with self.assertLogs("MusicBot", level="INFO") as cm:
+            logger.info(test_message)
+
+        self.assertIn(test_message, cm.output[0])
 
 
 if __name__ == "__main__":
