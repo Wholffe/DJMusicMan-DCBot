@@ -10,6 +10,8 @@ def get_env_int(varname, default):
 
 DATA_DIR = "/data"
 CACHE_DIR = os.path.join(DATA_DIR, "cache")
+AUDIO_FORMAT = "m4a"
+AUDIO_BITRATE = get_env_int("AUDIO_BITRATE", 192)
 
 FFMPEG_OPTIONS = {
     "options": "-vn",
@@ -19,11 +21,18 @@ YDLP_OPTIONS = {
     "format": "bestaudio/best",
     "noplaylist": True,
     "default_search": "ytsearch",
-    "quiet": False,
+    "quiet": True,
     "skip_download": True,
     "geo_bypass": True,
     "outtmpl": os.path.join(CACHE_DIR, "%(id)s.%(ext)s"),
-    "cookiefile": "cookies.txt",
+    "cookiefile": os.path.join(DATA_DIR, "cookies.txt"),
+    "postprocessors": [
+        {
+            "key": "FFmpegExtractAudio",
+            "preferredcodec": AUDIO_FORMAT,
+            "preferredquality": str(AUDIO_BITRATE),
+        }
+    ],
 }
 
 IDLE_TIMER = {"max_duration_timeout": get_env_int("IDLE_TIMER", 180)}
