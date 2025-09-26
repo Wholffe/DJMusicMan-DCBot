@@ -3,6 +3,7 @@ import os
 from typing import Dict, List, Optional
 
 import yt_dlp
+from yt_dlp.utils import DownloadError, ExtractorError
 
 from .config import CACHE_DIR, MAX_CACHE_FILES, YDLP_OPTIONS
 
@@ -102,8 +103,11 @@ class CacheManager:
         """Fetches info and downloads a new song in one step, then caches it."""
         opts = YDLP_OPTIONS.copy()
         opts["skip_download"] = False
-        with yt_dlp.YoutubeDL(opts) as ydl:
-            info = ydl.extract_info(search, download=True)
+        try:
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                info = ydl.extract_info(search, download=True)
+        except (DownloadError, ExtractorError):
+            return None
 
         pruned_info = self._prune_metadata(info)
         self.metadata_cache[search] = pruned_info

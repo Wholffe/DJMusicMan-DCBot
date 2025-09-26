@@ -51,7 +51,7 @@ def log_command(logger_instance: logging.Logger):
             try:
                 result = await func(self_or_musicbot, ctx, *args, **kwargs)
                 logger_instance.info(
-                    f"Command '{command_name}' by user '{user}' finished successfully."
+                    f"Finished '{command_name}' execution by user '{user}'."
                 )
                 return result
             except Exception as e:

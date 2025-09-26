@@ -108,6 +108,22 @@ async def _add_songs_to_queue(ctx, queue: MusicQueue, search: str, add_to_front=
         return True
 
 
+def get_latency_color(ms: int) -> discord.Color:
+    max_ms = 500
+    ms = max(0, min(ms, max_ms))
+    ratio = ms / max_ms
+
+    green = (67, 181, 129)
+    red = (240, 71, 71)
+
+    r = int(green[0] + (red[0] - green[0]) * ratio)
+    g = int(green[1] + (red[1] - green[1]) * ratio)
+    b = int(green[2] + (red[2] - green[2]) * ratio)
+
+    return discord.Color.from_rgb(r, g, b)
+
+
+# region CM_Commands
 @command_handler.handle_errors
 @log_command
 async def cm_play(musicbot, ctx, search):
@@ -117,6 +133,7 @@ async def cm_play(musicbot, ctx, search):
         return
     if not await is_playing(ctx):
         await play_next(ctx, musicbot.queue, musicbot.client)
+    return True
 
 
 @command_handler.handle_errors
@@ -127,6 +144,7 @@ async def cm_playfirst(musicbot, ctx, search):
         return
     if not await is_playing(ctx):
         await play_next(ctx, musicbot.queue, musicbot.client)
+    return True
 
 
 @command_handler.handle_errors
@@ -175,22 +193,6 @@ async def cm_showq(musicbot, ctx):
     await message_handler.send_custom(ctx, queue_embed)
 
 
-def get_latency_color(ms: int) -> discord.Color:
-    max_ms = 500
-    ms = max(0, min(ms, max_ms))
-    ratio = ms / max_ms
-
-    green = (67, 181, 129)
-    red = (240, 71, 71)
-
-    r = int(green[0] + (red[0] - green[0]) * ratio)
-    g = int(green[1] + (red[1] - green[1]) * ratio)
-    b = int(green[2] + (red[2] - green[2]) * ratio)
-
-    return discord.Color.from_rgb(r, g, b)
-
-
-# region CM_Commands
 @command_handler.handle_errors
 async def cm_clear(musicbot, ctx):
     musicbot.queue.clear()
