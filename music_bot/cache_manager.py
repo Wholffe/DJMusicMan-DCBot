@@ -5,7 +5,7 @@ from typing import Dict, List, Optional
 import yt_dlp
 from yt_dlp.utils import DownloadError, ExtractorError
 
-from .config import AUDIO_FORMAT, CACHE_DIR, MAX_CACHE_FILES, YDLP_OPTIONS
+from .config import CACHE_DIR, MAX_CACHE_FILES, YDLP_OPTIONS
 
 
 class CacheManager:
@@ -40,7 +40,7 @@ class CacheManager:
             return {
                 "id": entry.get("id"),
                 "title": entry.get("title"),
-                "ext": AUDIO_FORMAT,
+                "ext": entry.get("ext"),
                 "webpage_url": entry.get("webpage_url"),
             }
 

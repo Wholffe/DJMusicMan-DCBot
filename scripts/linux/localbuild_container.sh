@@ -12,7 +12,7 @@ chmod 777 "$DATA_PATH"
 
 sudo docker stop "$CONTAINER_NAME" || true
 sudo docker rm "$CONTAINER_NAME" || true
-sudo docker build -t "$DOCKER_IMAGE_NAME" .
+docker build --no-cache -t "$DOCKER_IMAGE_NAME" .
 sudo docker run -d \
   --name "$CONTAINER_NAME" \
   --env-file .env \

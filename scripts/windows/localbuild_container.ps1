@@ -14,7 +14,7 @@ if (-not (Test-Path -Path $dataPath)) {
 docker stop $dockerImageName
 docker rm $dockerImageName
 
-docker build -t $dockerImageName .
+docker build --no-cache -t $dockerImageName .
 docker run -d `
     --name $dockerImageName `
     --env-file .env `
