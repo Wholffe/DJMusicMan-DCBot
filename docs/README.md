@@ -1,91 +1,76 @@
-# DJ Music Man - The Discord Music Bot
+# DJ Music Man - A Discord Music Bot
 
 ## Description
 
-DJ Music Man is a simple Discord bot designed for playing music in voice channels. It leverages `yt-dlp` to fetch audio streams from YouTube and `FFmpeg` to play the audio in Discord. The bot supports basic music control commands such as playing, skipping, and queue management, making it easy to enjoy music with friends directly in your Discord server.
+DJ Music Man is a Discord bot designed for playing music in voice channels. It leverages `yt-dlp` to fetch audio streams from YouTube and `FFmpeg` to play them in Discord. The bot is built to be stable and easy to deploy using Docker.
+
+It supports essential music control commands such as playing, skipping, and queue management, making it easy to enjoy music with your friends directly on your Discord server.
 
 ## Requirements
-- A Discord bot token [Creating a discord bot & getting a token](https://github.com/reactiflux/discord-irc/wiki/Creating-a-discord-bot-&-getting-a-token)
-- Docker (recommended) [Docker's official website](https://www.docker.com/).
+- A Discord bot token [How to create a bot & get a token](https://github.com/reactiflux/discord-irc/wiki/Creating-a-discord-bot-&-getting-a-token)
+- Docker (recommended) [Docker's official website](https://www.docker.com/)
 
-## Download and Installation
-1. **Clone the Repository and Navigate to the Repository Directory**
-   ```bash
-   git clone https://github.com/Wholffe/DJMusicMan-DCBot.git
-   ```
+## Setup and Installation
 
-2. **Set Up Environment Variables**
-   - Create a `.env` file inside the project directory
-   ```plaintext
-   DISCORD_TOKEN=your-discord-token
-   ```
-   - Make sure to replace `your-discord-token` with your actual Discord bot token.
+### 1️ Clone the Repository
+```bash
+git clone https://github.com/Wholffe/DJMusicMan-DCBot.git
+cd DJMusicMan-DCBot
+```
 
-### Installation via Docker (recommended)
-3. **Cache-Ordner als Volume mappen (empfohlen für persistente Downloads)**
+### 2️ Create the Configuration File (.env)
+Create a `.env` file in the root of the project directory:
+```dotenv
+# --- Required ---
+DISCORD_TOKEN=your-discord-bot-token-goes-here
 
-   - Erstelle den Cache-Ordner und vergebe Schreibrechte:
-     ```bash
-     mkdir -p cache
-     chmod 777 cache
-     ```
+# --- Optional ---
+MAX_CACHE_FILES=100
+IDLE_TIMER=180
+```
+Replace `your-discord-bot-token-goes-here` with your actual token.
 
-   - Starte den Container mit Volume-Mapping:
-     ```bash
-     docker run -d \
-       --name djmusicman \
-       --env-file .env \
-       -v "$(pwd)/cache:/app/cache" \
-       --restart unless-stopped \
-       djmusicman
-     ```
+### 3️ Add YouTube Cookies (Optional)
+For playing age-restricted or members-only videos, the bot needs access to a YouTube account's cookies. This step is optional for public videos.  
+[How to Add YouTube Cookies](add_yt_cookies.md)
 
-   - Alternativ mit dem bereitgestellten Skript:
-     - ***Linux:***
-       ```bash
-       ./scripts/linux/run-container.sh
-       ```
-     - ***Windows:***
-       ```powershell
-       .\scripts\windows\run-container.ps1
-       ```
+### 4️ Run the Bot
+**With Docker (Recommended)**
 
-   **Hinweis:**  
-   Die Parameter `MAX_CACHE_FILES` und `IDLE_TIMER` können optional in der `.env` gesetzt werden:
-   ```
-   MAX_CACHE_FILES=100
-   IDLE_TIMER=180
-   ```
+  **Windows (PowerShell):**
+  ```powershell
+  .\scripts\windows\run-container.ps1
+  ```
 
-   ***Note: Alternative Manual Container Run***
+  **Linux/macOS:**
+  ```bash
+  chmod +x ./scripts/linux/run-container.sh
+  ./scripts/linux/run-container.sh
+  ```
 
-   - Manually start the Docker container from the root directory using the `.env` file:
-   
-     ```bash
-     docker run -d --name djmusicman --env-file .env --restart unless-stopped "djmusicman"
-     ```
+  These scripts will:
+  - Stop and remove any old container
+  - Build a fresh Docker image
+  - Start the container with the correct settings, mounting the data directory for persistent caching and mapping your `.env` file
 
-### OR
+  #### Manual Docker Run (Alternative)
+  ```bash
+  docker run -d \
+    --name djmusicman \
+    --env-file .env \
+    -v "$(pwd)/cache:/app/cache" \
+    --restart unless-stopped \
+    djmusicman
+  ```
 
-### Installation Without Docker
-   - Additional requirements for local run:
-      - Python 3.8 or higher
-      - `FFmpeg` for audio streaming
+**Without Docker**
 
-3. **Install the Dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
+  For instructions on running the bot without Docker, see the separate file: [Manual Installation Steps](dj_music_man_manual_installation.md)
 
-4. **Run the Bot in root dir**
-   ```bash
-   python main.py
-   ```
-   
 ## Contribution
 
-Contributions to this repository are welcome! If you have additional ideas or improvements, feel free to submit pull requests.
+Contributions are welcome! If you have ideas for improvements or new features, feel free to open an issue or submit a pull request.
 
 ## License
 
-This repository is licensed under the [MIT License](../LICENSE).
+This project is licensed under the [MIT License](../LICENSE).
