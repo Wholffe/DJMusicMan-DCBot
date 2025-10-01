@@ -1,4 +1,5 @@
 import asyncio
+import sys
 from concurrent.futures import ThreadPoolExecutor
 
 import discord
@@ -81,12 +82,18 @@ async def play_next(ctx, queue: MusicQueue, client):
         return
 
     idle_timer.clear_timer_task()
+    if not ctx.voice_client:
+        return
+
     url, title = song
     await play_song(ctx, queue, client, url, title)
 
 
 async def _add_songs_to_queue(ctx, queue: MusicQueue, search: str, add_to_front=False):
     async with ctx.typing():
+        if search.lower().startswith("wwww.youtube.com"):
+            search = f"https://{search}"
+
         songs = await get_song_infos(search)
         if not songs:
             await message_handler.send_error(ctx, CONST.MESSAGE_FAILED_VIDEO_INFO)
@@ -137,6 +144,7 @@ async def cm_play(musicbot, ctx, search):
 
 
 @command_handler.handle_errors
+@log_command
 async def cm_playfirst(musicbot, ctx, search):
     if not await join_voice_channel(musicbot, ctx):
         return
@@ -255,16 +263,12 @@ async def cm_remove(musicbot, ctx, index) -> None:
         await message_handler.send_error(ctx, f"Invalid queue number: {index}")
 
 
-@command_handler.handle_errors
-async def cm_reset(musicbot, ctx) -> None:
-    if ctx.voice_client:
-        await ctx.voice_client.disconnect(force=True)
-
-    musicbot.queue.clear()
+@log_command
+async def cm_restart(musicbot, ctx) -> None:
+    await message_handler.send_info(ctx, CONST.MESSAGE_RESTARTING_BOT)
     musicbot.queue.set_loop(False)
-    idle_timer.clear_timer_task()
-
-    await message_handler.send_success(ctx, CONST.MESSAGE_BOT_RESET)
+    await cm_leave(ctx)
+    await musicbot.client.close()
 
 
 @command_handler.handle_errors

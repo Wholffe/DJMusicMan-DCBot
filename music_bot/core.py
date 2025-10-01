@@ -14,7 +14,7 @@ from .utils import (
     cm_play,
     cm_playfirst,
     cm_remove,
-    cm_reset,
+    cm_restart,
     cm_showq,
     cm_shuffle,
     cm_skip,
@@ -80,9 +80,9 @@ class MusicBot(commands.Cog):
     async def playfirst(self, ctx, *, search) -> None:
         await cm_playfirst(self, ctx, search)
 
-    @commands.command()
-    async def reset(self, ctx) -> None:
-        await cm_reset(self, ctx)
+    @commands.command(aliases=["reset"])
+    async def restart(self, ctx) -> None:
+        await cm_restart(self, ctx)
 
     @commands.command()
     async def clear_cache(self, ctx) -> None:

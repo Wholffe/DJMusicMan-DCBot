@@ -2,29 +2,31 @@ import functools
 import logging
 import logging.handlers
 import os
+from datetime import datetime
 from typing import Callable
 
 from music_bot.config import DATA_DIR
 
-LOG_FILE = os.path.join(DATA_DIR, "music_bot.log")
+LOG_DIR = os.path.join(DATA_DIR, "logs")
 
 
 def setup_logger():
     """Configures and returns a logger instance."""
-    os.makedirs(DATA_DIR, exist_ok=True)
+    os.makedirs(LOG_DIR, exist_ok=True)
+
+    log_file_path = os.path.join(LOG_DIR, f"{datetime.now().strftime('%Y-%m-%d')}.log")
 
     logger = logging.getLogger("MusicBot")
     logger.setLevel(logging.INFO)
     logger.propagate = False
 
     formatter = logging.Formatter(
-        "%(asctime)s - [%(levelname)s]: %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
+        "%(asctime)s - [%(levelname)s] - [%(name)s]: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
     )
 
     console_handler = logging.StreamHandler()
-    file_handler = logging.handlers.RotatingFileHandler(
-        LOG_FILE, maxBytes=1024 * 1024, backupCount=5, encoding="utf-8"
-    )
+    file_handler = logging.FileHandler(log_file_path, encoding="utf-8")
 
     console_handler.setFormatter(formatter)
     file_handler.setFormatter(formatter)

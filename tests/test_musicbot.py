@@ -353,6 +353,7 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
 
         mock_is_bot_only_member_in_vc.return_value = False
         await play_next(self.ctx, self.musicbot.queue, self.musicbot.client)
+
         self.ctx.voice_client.disconnect.assert_not_called()
         self.ctx.voice_client.play.assert_called_once()
 
@@ -366,6 +367,7 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
 
         mock_is_bot_only_member_in_vc.return_value = True
         await play_next(self.ctx, self.musicbot.queue, self.musicbot.client)
+
         self.ctx.voice_client.disconnect.assert_called_once()
         self.ctx.voice_client.play.assert_not_called()
         self.ctx.send.assert_called()
@@ -373,21 +375,15 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(embed.title)
         self.assertEqual(embed.description, CONST.MESSAGE_NO_USERS_IN_CHANNEL)
 
-    @patch("music_bot.utils.idle_timer.clear_timer_task")
-    @patch("music_bot.utils.message_handler.send_success", new_callable=AsyncMock)
-    async def test_reset_command(self, mock_send_success, mock_clear_timer_task):
-        self.ctx.voice_client = AsyncMock()
-        self.musicbot.queue.add_song("url1", "title1")
-        self.musicbot.queue.loop = True
+    async def test_restart_command(self):
+        self.bot.close = unittest.mock.AsyncMock()
 
-        command = self.bot.get_command("reset")
+        command = self.bot.get_command("restart")
         await command(self.ctx)
 
-        self.ctx.voice_client.disconnect.assert_awaited_with(force=True)
-        self.assertEqual(len(self.musicbot.queue.queue), 0)
-        self.assertFalse(self.musicbot.queue.loop)
-        mock_clear_timer_task.assert_called_once()
-        mock_send_success.assert_awaited_with(self.ctx, CONST.MESSAGE_BOT_RESET)
+        embed = self.ctx.send.call_args[1]["embed"]
+        self.assertEqual(embed.description, CONST.MESSAGE_RESTARTING_BOT)
+        self.bot.close.assert_called_once()
 
     @patch("music_bot.utils.join_voice_channel", new_callable=AsyncMock)
     async def test_play_fails_if_user_not_in_voice_channel(

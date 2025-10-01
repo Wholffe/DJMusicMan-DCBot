@@ -2,7 +2,7 @@ from copy import deepcopy
 from typing import Final
 
 # region Info
-VERSION: Final = "2.2.3"
+VERSION: Final = "2.2.4"
 NAME: Final = "DJ Music Man"
 FOOTER: Final = f"{NAME} {VERSION}"
 
@@ -54,7 +54,7 @@ EMBED_DJHELP = {
         },
         {"name": "/clear_cache", "value": "Clears the song cache", "inline": True},
         {"name": "/ping", "value": "Ping the bot", "inline": True},
-        {"name": "/reset", "value": "Resets the bot", "inline": True},
+        {"name": "/reset | /restart", "value": "Resets the bot", "inline": True},
     ],
     "footer": FOOTER,
 }
@@ -75,7 +75,7 @@ def get_queue_embed():
 
 
 # region Messages
-MESSAGE_BOT_RESET: Final = "Bot has been reset."
+MESSAGE_RESTARTING_BOT: Final = "Restarting bot, please wait..."
 MESSAGE_CANNOT_CLEAR_CACHE_WHILE_CONNECTED: Final = (
     "Cannot clear cache while connected to a voice channel."
 )
