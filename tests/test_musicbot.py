@@ -19,7 +19,7 @@ intents.voice_states = True
 
 class TestMusicBot(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
-        logging.getLogger("MusicBot").setLevel(logging.CRITICAL + 1)
+        logging.getLogger().setLevel(logging.CRITICAL + 1)
         self.bot = commands.Bot(command_prefix="/", intents=intents)
         self.musicbot = MusicBot(self.bot)
         self.message_handler = MessageHandler()
@@ -457,7 +457,7 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
 
         test_message = "test info message"
 
-        with self.assertLogs("MusicBot", level="INFO") as cm:
+        with self.assertLogs("root", level="INFO") as cm:
             logger.info(test_message)
 
         self.assertIn(test_message, cm.output[0])

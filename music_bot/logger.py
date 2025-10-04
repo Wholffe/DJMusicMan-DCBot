@@ -2,7 +2,6 @@ import functools
 import logging
 import logging.handlers
 import os
-from datetime import datetime
 from typing import Callable
 
 from music_bot.config import DATA_DIR
@@ -14,11 +13,10 @@ def setup_logger():
     """Configures and returns a logger instance."""
     os.makedirs(LOG_DIR, exist_ok=True)
 
-    log_file_path = os.path.join(LOG_DIR, f"{datetime.now().strftime('%Y-%m-%d')}.log")
+    log_file_path = os.path.join(LOG_DIR, "bot.log")
 
-    logger = logging.getLogger("MusicBot")
+    logger = logging.getLogger()
     logger.setLevel(logging.INFO)
-    logger.propagate = False
 
     formatter = logging.Formatter(
         "%(asctime)s - [%(levelname)s] - [%(name)s]: %(message)s",
@@ -26,7 +24,9 @@ def setup_logger():
     )
 
     console_handler = logging.StreamHandler()
-    file_handler = logging.FileHandler(log_file_path, encoding="utf-8")
+    file_handler = logging.handlers.TimedRotatingFileHandler(
+        log_file_path, when="midnight", encoding="utf-8"
+    )
 
     console_handler.setFormatter(formatter)
     file_handler.setFormatter(formatter)
@@ -38,35 +38,29 @@ def setup_logger():
     return logger
 
 
-def log_command(logger_instance: logging.Logger):
+logger = setup_logger()
+
+
+def log_command(func: Callable):
     """A simple decorator to log the execution of a bot command function."""
 
-    def decorator(func: Callable):
-        @functools.wraps(func)
-        async def wrapper(self_or_musicbot, ctx, *args, **kwargs):
-            user = ctx.author
-            command_name = func.__name__
+    @functools.wraps(func)
+    async def wrapper(self_or_musicbot, ctx, *args, **kwargs):
+        user = ctx.author
+        command_name = func.__name__
 
-            logger_instance.info(
-                f"User '{user}' executed command '{command_name}' with args: {args}"
+        logger.info(
+            f"User '{user}' executed command '{command_name}' with args: {args}"
+        )
+        try:
+            result = await func(self_or_musicbot, ctx, *args, **kwargs)
+            logger.info(f"Finished '{command_name}' execution by user '{user}'.")
+            return result
+        except Exception as e:
+            logger.error(
+                f"Error executing command '{command_name}' for user '{user}': {e}",
+                exc_info=True,
             )
-            try:
-                result = await func(self_or_musicbot, ctx, *args, **kwargs)
-                logger_instance.info(
-                    f"Finished '{command_name}' execution by user '{user}'."
-                )
-                return result
-            except Exception as e:
-                logger_instance.error(
-                    f"Error executing command '{command_name}' for user '{user}': {e}",
-                    exc_info=True,
-                )
-                raise
+            raise
 
-        return wrapper
-
-    return decorator
-
-
-logger = setup_logger()
-log_command = log_command(logger)
+    return wrapper
