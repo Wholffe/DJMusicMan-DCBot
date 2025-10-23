@@ -24,6 +24,11 @@ YDLP_OPTIONS = {
     "geo_bypass": True,
     "outtmpl": os.path.join(CACHE_DIR, "%(id)s.%(ext)s"),
     "cookiefile": os.path.join(DATA_DIR, "cookies.txt"),
+    "extractor_args": {
+        "youtube": {
+            "player_client": ["default", "-tv_simply"],
+        },
+    },
 }
 
 IDLE_TIMER = {"max_duration_timeout": get_env_int("IDLE_TIMER", 180)}
