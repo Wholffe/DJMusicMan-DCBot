@@ -300,7 +300,7 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         self.musicbot.queue.add_song("url1", "title1")
         self.musicbot.queue.add_song("url2", "title2")
         self.musicbot.queue.loop = True
-        self.musicbot.queue.current_song = self.musicbot.queue.get_next_song()
+        self.musicbot.queue.current_song = ("url0", "title0")
 
         source = MagicMock()
         mock_from_probe.return_value = source
@@ -309,9 +309,10 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
 
         await play_next(self.ctx, self.musicbot.queue, self.musicbot.client)
 
-        self.assertEqual(self.musicbot.queue.current_song[1], "title1")
-        self.assertEqual(len(self.musicbot.queue.queue), 1)
-        self.assertEqual(self.musicbot.queue.queue[0][1], "title2")
+        self.assertEqual(self.musicbot.queue.current_song[1], "title0")
+        self.assertEqual(len(self.musicbot.queue.queue), 2)
+        self.assertEqual(self.musicbot.queue.queue[0][1], "title1")
+        self.assertEqual(self.musicbot.queue.queue[1][1], "title2")
         self.ctx.voice_client.play.assert_called_once_with(
             source, after=unittest.mock.ANY
         )
@@ -344,18 +345,18 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.musicbot.queue.queue[0][1], "title1")
 
     @patch("music_bot.utils.is_bot_only_member_in_vc", new_callable=AsyncMock)
+    @patch("music_bot.utils.play_song", new_callable=AsyncMock)
     async def test_play_next_with_other_member_in_vc(
-        self, mock_is_bot_only_member_in_vc
+        self, mock_play_song, mock_is_bot_only_member_in_vc
     ):
         self.musicbot.queue.add_song("url1", "title1")
         self.musicbot.queue.add_song("url2", "title2")
-        self.musicbot.queue.current_song = self.musicbot.queue.get_next_song()
 
         mock_is_bot_only_member_in_vc.return_value = False
         await play_next(self.ctx, self.musicbot.queue, self.musicbot.client)
 
         self.ctx.voice_client.disconnect.assert_not_called()
-        self.ctx.voice_client.play.assert_called_once()
+        mock_play_song.assert_called_once()
 
     @patch("music_bot.utils.is_bot_only_member_in_vc", new_callable=AsyncMock)
     async def test_play_next_with_no_other_member_in_vc(
