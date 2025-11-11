@@ -1,11 +1,60 @@
 import json
 import os
+import time
+import asyncio
+import discord
 from typing import Dict, List, Optional
 
 import yt_dlp
 from yt_dlp.utils import DownloadError, ExtractorError
 
 from .config import CACHE_DIR, MAX_CACHE_FILES, YDLP_OPTIONS
+
+
+class ProgressHook:
+    """
+    Creates a yt_dlp progress hook that thread-safely edits a Discord message
+    to display download progress.
+    """
+    def __init__(self, message: discord.Message, loop: asyncio.AbstractEventLoop):
+        self.message = message
+        self.loop = loop
+        self.last_update_time = 0
+
+    def __call__(self, d):
+        if d['status'] == 'downloading':
+            current_time = time.time()
+            if (current_time - self.last_update_time) > 2.5:
+                self.last_update_time = current_time
+
+                percent_str = d.get('_percent_str', '0.0%').strip()
+                eta_str = d.get('_eta_str', 'N/A')
+
+                try:
+                    percent_float = float(percent_str.replace('%','')) / 100.0
+                    filled_blocks = int(round(percent_float * 15)) # 15 blocks
+                    empty_blocks = 15 - filled_blocks
+                    bar = '█' * filled_blocks + '░' * empty_blocks
+                except:
+                    bar = "Processing..."
+
+                new_description = f"**Downloading...**\n`{bar}`\n`{percent_str: >8}` | ETA: `{eta_str}`"
+                
+                embed = discord.Embed(
+                    description=new_description,
+                    color=discord.Color.blurple()
+                )
+
+                async_update_task = self.message.edit(embed=embed)
+                self.loop.call_soon_threadsafe(asyncio.create_task, async_update_task)
+
+        elif d['status'] == 'finished':
+            final_embed = discord.Embed(
+                description="Download complete. Processing...",
+                color=discord.Color.green()
+            )
+            async_final_task = self.message.edit(embed=final_embed)
+            self.loop.call_soon_threadsafe(asyncio.create_task, async_final_task)
 
 
 class CacheManager:
@@ -67,14 +116,15 @@ class CacheManager:
 
         self._save_metadata()
 
-    def _process_entries(self, entries: List[Dict]) -> List[Dict[str, str]]:
+    def _process_entries(self, entries: List[Dict],progress_message: discord.Message = None,bot_loop: asyncio.AbstractEventLoop = None
+                         ) -> List[Dict[str, str]]:
         """Builds a list of songs from entries, ensuring files are downloaded."""
         songs = []
         for entry in entries:
             if not entry:
                 continue
 
-            filepath = self._download_song_if_missing(entry)
+            filepath = self._download_song_if_missing(entry, progress_message, bot_loop)
             if filepath:
                 songs.append(
                     {
@@ -84,7 +134,7 @@ class CacheManager:
                 )
         return songs
 
-    def _download_song_if_missing(self, entry: Dict) -> Optional[str]:
+    def _download_song_if_missing(self, entry: Dict,progress_message: discord.Message = None,bot_loop: asyncio.AbstractEventLoop = None                                  ) -> Optional[str]:
         """Gets the filepath for an entry, downloading the file if it doesn't exist."""
         with yt_dlp.YoutubeDL(YDLP_OPTIONS) as ydl:
             filepath = ydl.prepare_filename(entry)
@@ -94,15 +144,21 @@ class CacheManager:
 
         download_opts = YDLP_OPTIONS.copy()
         download_opts["skip_download"] = False
+        if progress_message and bot_loop:
+            hook = ProgressHook(progress_message, bot_loop)
+            download_opts["progress_hooks"] = [hook]
         with yt_dlp.YoutubeDL(download_opts) as ydl_dl:
             ydl_dl.download([entry["webpage_url"]])
 
         return filepath
 
-    def _fetch_and_cache_new_song(self, search: str) -> Optional[Dict]:
+    def _fetch_and_cache_new_song(self, search: str,progress_message: discord.Message = None,bot_loop: asyncio.AbstractEventLoop = None) -> Optional[Dict]:
         """Fetches info and downloads a new song in one step, then caches it."""
         opts = YDLP_OPTIONS.copy()
         opts["skip_download"] = False
+        if progress_message and bot_loop:
+            hook = ProgressHook(progress_message, bot_loop)
+            opts["progress_hooks"] = [hook]
         try:
             with yt_dlp.YoutubeDL(opts) as ydl:
                 info = ydl.extract_info(search, download=True)
@@ -114,20 +170,23 @@ class CacheManager:
         self._enforce_cache_limit()
         return pruned_info
 
-    def get_songs(self, search: str) -> List[Dict[str, str]]:
+    def get_songs(self, search: str,
+                  progress_message: discord.Message = None, 
+                  bot_loop: asyncio.AbstractEventLoop = None
+                  ) -> List[Dict[str, str]]:
         """Main method to get song data using guard clauses for clarity."""
         if search in self.metadata_cache:
             info = self.metadata_cache[search]
             entries = info.get("entries", [info])
-            return self._process_entries(entries)
+            return self._process_entries(entries, progress_message, bot_loop)
 
-        info = self._fetch_and_cache_new_song(search)
+        info = self._fetch_and_cache_new_song(search, progress_message, bot_loop)
 
         if not info:
             return []
 
         entries = info.get("entries", [info])
-        return self._process_entries(entries)
+        return self._process_entries(entries, progress_message, bot_loop)
 
     def clear_cache(self) -> tuple[int, float]:
         """Clears the entire cache and returns the number of files deleted and total size freed in MB."""

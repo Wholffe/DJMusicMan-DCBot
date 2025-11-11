@@ -23,14 +23,16 @@ executor = ThreadPoolExecutor(max_workers=5)
 
 
 # region Asynchronous Helpers
-async def get_song_infos(searches) -> list:
+async def get_song_infos(searches,progress_message: discord.Message = None,bot_loop: asyncio.AbstractEventLoop = None) -> list:
     """Asynchronously fetches song information using the CacheManager."""
     if isinstance(searches, str):
         searches = [searches]
 
     loop = asyncio.get_event_loop()
     tasks = [
-        loop.run_in_executor(executor, cache_manager.get_songs, search)
+        loop.run_in_executor(
+            executor,cache_manager.get_songs,search,progress_message,bot_loop
+        )
         for search in searches
     ]
     results = await asyncio.gather(*tasks)
@@ -89,30 +91,40 @@ async def play_next(ctx, queue: MusicQueue, client):
     await play_song(ctx, queue, client, url, title)
 
 
-async def _add_songs_to_queue(ctx, queue: MusicQueue, search: str, add_to_front=False):
-    async with ctx.typing():
-        if search.lower().startswith("wwww.youtube.com"):
-            search = f"https://{search}"
+async def _add_songs_to_queue(ctx, musicbot, search: str, add_to_front=False): # MODIFIED (musicbot)
+    queue = musicbot.queue
+    bot_loop = musicbot.client.loop
+    progress_message = await message_handler.send_info(ctx, "🔍 Searching for song...")
+    if search.lower().startswith("wwww.youtube.com"):
+        search = f"https://{search}"
 
-        songs = await get_song_infos(search)
-        if not songs:
-            await message_handler.send_error(ctx, CONST.MESSAGE_FAILED_VIDEO_INFO)
-            return False
+    songs = await get_song_infos(search, progress_message, bot_loop)
+    if not songs:
+        error_embed = discord.Embed(
+            description=CONST.MESSAGE_FAILED_VIDEO_INFO,
+            color=message_handler.COLORS["error"]
+        )
+        await progress_message.edit(embed=error_embed)
+        return False
 
-        for song in reversed(songs) if add_to_front else songs:
-            if add_to_front:
-                queue.add_song_first(song["url"], song["title"])
-            else:
-                queue.add_song(song["url"], song["title"])
-
-        queue_position = "front of the queue" if add_to_front else "queue"
-        if len(songs) > 1:
-            message = f"Added {len(songs)} songs to the {queue_position}."
+    for song in reversed(songs) if add_to_front else songs:
+        if add_to_front:
+            queue.add_song_first(song["url"], song["title"])
         else:
-            message = f"Added to the {queue_position}: {songs[0]['title']}"
+            queue.add_song(song["url"], song["title"])
 
-        await message_handler.send_success(ctx, message)
-        return True
+    queue_position = "front of the queue" if add_to_front else "queue"
+    if len(songs) > 1:
+        message = f"Added {len(songs)} songs to the {queue_position}."
+    else:
+        message = f"Added to the {queue_position}: {songs[0]['title']}"
+
+    success_embed = discord.Embed(
+        description=message,
+        color=message_handler.COLORS["success"]
+    )
+    await progress_message.edit(embed=success_embed)
+    return True
 
 
 def get_latency_color(ms: int) -> discord.Color:
@@ -136,7 +148,7 @@ def get_latency_color(ms: int) -> discord.Color:
 async def cm_play(musicbot, ctx, search):
     if not await join_voice_channel(musicbot, ctx):
         return
-    if not await _add_songs_to_queue(ctx, musicbot.queue, search):
+    if not await _add_songs_to_queue(ctx, musicbot, search):
         return
     if not await is_playing(ctx):
         await play_next(ctx, musicbot.queue, musicbot.client)
@@ -148,7 +160,7 @@ async def cm_play(musicbot, ctx, search):
 async def cm_playfirst(musicbot, ctx, search):
     if not await join_voice_channel(musicbot, ctx):
         return
-    if not await _add_songs_to_queue(ctx, musicbot.queue, search, add_to_front=True):
+    if not await _add_songs_to_queue(ctx, musicbot, search, add_to_front=True):
         return
     if not await is_playing(ctx):
         await play_next(ctx, musicbot.queue, musicbot.client)
