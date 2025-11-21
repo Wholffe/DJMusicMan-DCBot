@@ -10,11 +10,11 @@ from .cache_manager import CacheManager
 from .command_handler import CommandHandler
 from .config import FFMPEG_OPTIONS
 from .idle_timer import IdleTimer
-from .logger import log_command
+from .logger import log_command, logger
 from .message_handler import MessageHandler
 from .music_queue import MusicQueue
+from .progress_bar import ProgressBar
 
-# region Global Instances
 message_handler = MessageHandler()
 idle_timer = IdleTimer()
 cache_manager = CacheManager()
@@ -23,15 +23,14 @@ executor = ThreadPoolExecutor(max_workers=5)
 
 
 # region Asynchronous Helpers
-async def get_song_infos(searches) -> list:
-    """Asynchronously fetches song information using the CacheManager."""
+async def get_song_infos(searches, progress_hook=None) -> list:
     if isinstance(searches, str):
         searches = [searches]
 
     loop = asyncio.get_event_loop()
     tasks = [
-        loop.run_in_executor(executor, cache_manager.get_songs, search)
-        for search in searches
+        loop.run_in_executor(executor, cache_manager.get_songs, search_query, progress_hook)
+        for search_query in searches
     ]
     results = await asyncio.gather(*tasks)
     return [song for result in results for song in result]
@@ -89,30 +88,50 @@ async def play_next(ctx, queue: MusicQueue, client):
     await play_song(ctx, queue, client, url, title)
 
 
-async def _add_songs_to_queue(ctx, queue: MusicQueue, search: str, add_to_front=False):
-    async with ctx.typing():
-        if search.lower().startswith("wwww.youtube.com"):
-            search = f"https://{search}"
+async def _add_songs_to_queue(ctx, queue: MusicQueue, search_query: str, status_message, add_to_front=False):
+    progress_bar = ProgressBar(status_message, ctx.bot.loop)
 
-        songs = await get_song_infos(search)
-        if not songs:
-            await message_handler.send_error(ctx, CONST.MESSAGE_FAILED_VIDEO_INFO)
-            return False
+    if search_query.lower().startswith("wwww.youtube.com"):
+        search_query = f"https://{search_query}"
 
-        for song in reversed(songs) if add_to_front else songs:
-            if add_to_front:
-                queue.add_song_first(song["url"], song["title"])
-            else:
-                queue.add_song(song["url"], song["title"])
+    try:
+        songs = await get_song_infos(search_query, progress_hook=progress_bar)
+    except Exception as e:
+        logger.error(f"Error retrieving song info: {e}")
+        if status_message.embeds:
+            embed = status_message.embeds[0]
+            embed.description = f"**Error:** {str(e)}"
+            embed.color = discord.Color.red()
+            await status_message.edit(embed=embed)
+        return False
+    
+    if not songs:
+        if status_message.embeds:
+            embed = status_message.embeds[0]
+            embed.description = CONST.MESSAGE_FAILED_VIDEO_INFO
+            embed.color = discord.Color.red()
+            await status_message.edit(embed=embed)
+        return False
 
-        queue_position = "front of the queue" if add_to_front else "queue"
-        if len(songs) > 1:
-            message = f"Added {len(songs)} songs to the {queue_position}."
+    for song in reversed(songs) if add_to_front else songs:
+        if add_to_front:
+            queue.add_song_first(song["url"], song["title"])
         else:
-            message = f"Added to the {queue_position}: {songs[0]['title']}"
+            queue.add_song(song["url"], song["title"])
 
-        await message_handler.send_success(ctx, message)
-        return True
+    queue_position = "front of the queue" if add_to_front else "queue"
+    if len(songs) > 1:
+        final_text = f"Added {len(songs)} songs to the {queue_position}."
+    else:
+        final_text = f"Added to the {queue_position}: {songs[0]['title']}"
+
+    if status_message.embeds:
+        embed = status_message.embeds[0]
+        embed.description = final_text
+        embed.color = discord.Color.green()
+        await status_message.edit(embed=embed)
+        
+    return True
 
 
 def get_latency_color(ms: int) -> discord.Color:
@@ -134,24 +153,30 @@ def get_latency_color(ms: int) -> discord.Color:
 @command_handler.handle_errors
 @log_command
 async def cm_play(musicbot, ctx, search):
-    if not await join_voice_channel(musicbot, ctx):
-        return
-    if not await _add_songs_to_queue(ctx, musicbot.queue, search):
-        return
-    if not await is_playing(ctx):
-        await play_next(ctx, musicbot.queue, musicbot.client)
+    async with ctx.typing():
+        if not await join_voice_channel(musicbot, ctx):
+            return
+        status_message = await message_handler.send_info(ctx, f"Searching: {search}")
+        success = await _add_songs_to_queue(ctx, musicbot.queue, search, status_message=status_message)
+        if not success:
+            return
+        if not await is_playing(ctx):
+            await play_next(ctx, musicbot.queue, musicbot.client)
     return True
 
 
 @command_handler.handle_errors
 @log_command
 async def cm_playfirst(musicbot, ctx, search):
-    if not await join_voice_channel(musicbot, ctx):
-        return
-    if not await _add_songs_to_queue(ctx, musicbot.queue, search, add_to_front=True):
-        return
-    if not await is_playing(ctx):
-        await play_next(ctx, musicbot.queue, musicbot.client)
+    async with ctx.typing():
+        if not await join_voice_channel(musicbot, ctx):
+            return
+        status_message = await message_handler.send_info(ctx, f"Searching: {search}")
+        success = await _add_songs_to_queue(ctx, musicbot.queue, search, status_message=status_message, add_to_front=True)
+        if not success:
+            return
+        if not await is_playing(ctx):
+            await play_next(ctx, musicbot.queue, musicbot.client)
     return True
 
 
