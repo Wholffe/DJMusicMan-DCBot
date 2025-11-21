@@ -16,8 +16,8 @@ docker build --no-cache -t "$DOCKER_IMAGE_NAME" .
 docker run -d \
   --name "$CONTAINER_NAME" \
   --env-file .env \
-  -v "$DATA_PATH":/data \
+  -v "$DATA_PATH":/app/data \
   --restart unless-stopped \
   "$DOCKER_IMAGE_NAME"
 
-docker images --filter 'dangling=true' -q | xargs -r sudo docker rmi -f
+docker images --filter 'dangling=true' -q | xargs -r docker rmi -f

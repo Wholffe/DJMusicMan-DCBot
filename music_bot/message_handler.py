@@ -34,34 +34,34 @@ class MessageHandler:
                 )
         if footer:
             embed.set_footer(text=footer)
-        await ctx.send(embed=embed)
+        return await ctx.send(embed=embed)
 
     async def send_success(self, ctx, message: str):
-        await self._send_embed(
+        return await self._send_embed(
             ctx,
             message=message,
             color=self.COLORS["success"],
         )
 
     async def send_error(self, ctx, message: str):
-        await self._send_embed(
+        return await self._send_embed(
             ctx,
             message=message,
             color=self.COLORS["error"],
         )
 
     async def send_info(self, ctx, message: str):
-        await self._send_embed(
+        return await self._send_embed(
             ctx,
             message=message,
             color=self.COLORS["info"],
         )
 
     async def send_raw(self, ctx, message: str):
-        await self._send_embed(ctx, message=message)
+        return await self._send_embed(ctx, message=message)
 
     async def send_custom(self, ctx, embed_dict: dict):
-        await self._send_embed(
+        return await self._send_embed(
             ctx,
             message=embed_dict.get("description", ""),
             title=embed_dict.get("title", ""),
