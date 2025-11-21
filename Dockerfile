@@ -20,5 +20,6 @@ VOLUME ["/data"]
 ENV MAX_CACHE_FILES=100
 ENV IDLE_TIMER=180
 ENV UPDATE_ON_RESTART=true
+ENV STARTUP_CHANNEL_ID=0
 
 CMD ["sh", "-c", "if [ \"$UPDATE_ON_RESTART\" = \"true\" ]; then pip install --no-cache-dir --upgrade -r requirements.txt; fi && python3 /app/main.py"]

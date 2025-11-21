@@ -7,7 +7,7 @@ def get_env_int(varname, default):
         return default
     return int(val)
 
-
+STARTUP_CHANNEL_ID = get_env_int("STARTUP_CHANNEL_ID", 0)
 DATA_DIR = "/data"
 CACHE_DIR = os.path.join(DATA_DIR, "cache")
 PREFERED_AUDIO_FORMAT = "webm"

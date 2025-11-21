@@ -1,7 +1,9 @@
 from discord.ext import commands
 
+from music_bot.config import STARTUP_CHANNEL_ID
 from music_bot.constants import VERSION
 from music_bot.logger import logger
+from music_bot.message_handler import MessageHandler
 
 from .music_queue import MusicQueue
 from .utils import (
@@ -26,11 +28,21 @@ class MusicBot(commands.Cog):
     def __init__(self, bot):
         self.client = bot
         self.queue = MusicQueue()
+        self.message_handler = MessageHandler()
         self.client.remove_command("help")
 
     @commands.Cog.listener()
     async def on_ready(self):
-        logger.info(f"{self.client.user} is ready. Version: {VERSION}")
+            info_message = f"{self.client.user} is ready. Version: {VERSION}"
+            logger.info(info_message)
+
+            if not STARTUP_CHANNEL_ID:
+                return
+            channel = self.client.get_channel(STARTUP_CHANNEL_ID)
+            if not channel:
+                logger.warning(f"Channel ID {STARTUP_CHANNEL_ID} not found.")
+                return
+            await self.message_handler.send_info(channel, info_message)
 
     @commands.command()
     async def play(self, ctx, *, search) -> None:
