@@ -2,7 +2,7 @@ from copy import deepcopy
 from typing import Final
 
 # region Info
-VERSION: Final = "2.2.6"
+VERSION: Final = "2.2.7"
 NAME: Final = "DJ Music Man"
 FOOTER: Final = f"{NAME} {VERSION}"
 

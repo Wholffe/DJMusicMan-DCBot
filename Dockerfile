@@ -1,11 +1,15 @@
-FROM python:3.11-slim-bullseye
+FROM python:3.11-slim-bookworm
 
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install -y ffmpeg \
+    && apt-get install -y ffmpeg curl unzip \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
+
+ENV DENO_INSTALL="/root/.deno"
+ENV PATH="$DENO_INSTALL/bin:$PATH"
+RUN curl -fsSL https://deno.land/x/install/install.sh | sh
 
 RUN python -m pip install --upgrade pip
 
