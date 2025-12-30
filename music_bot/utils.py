@@ -159,10 +159,7 @@ async def cm_playfirst(musicbot, ctx, search):
 async def cm_skip(musicbot, ctx):
     if not await is_playing(ctx):
         return
-    current_loop_status = musicbot.queue.loop
-    musicbot.queue.set_loop(False)
-    ctx.voice_client.stop()
-    musicbot.queue.set_loop(current_loop_status)
+    musicbot.queue.skip_current_song(ctx)
     await message_handler.send_success(ctx, CONST.MESSAGE_SKIPPED_SONG)
 
 @command_handler.handle_errors

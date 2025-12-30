@@ -8,6 +8,7 @@ class MusicQueue:
         self.queue = []
         self.current_song = None
         self.loop = False
+        self._skip_current = False
 
     def add_song(self, url, title) -> None:
         self.queue.append((url, title))
@@ -16,8 +17,9 @@ class MusicQueue:
         self.queue.insert(0, (url, title))
 
     def get_next_song(self):
-        if self.loop and self.current_song:
+        if self.loop and self.current_song and not self._skip_current:
             self.queue.insert(0, self.current_song)
+        self._skip_current = False
         self.current_song = self.queue.pop(0) if self.queue else None
         return self.current_song
 
@@ -65,6 +67,10 @@ class MusicQueue:
 
     def set_loop(self, value: bool) -> None:
         self.loop = value
+
+    def skip_current_song(self, ctx) -> None:
+        self._skip_current = True
+        ctx.voice_client.stop()
 
     def remove_song(self, index):
         if 0 <= index < len(self.queue):
