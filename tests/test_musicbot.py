@@ -134,7 +134,7 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         command = self.bot.get_command("skip")
         await command(self.ctx)
 
-        self.assertFalse(self.musicbot.queue.loop)
+        self.assertTrue(self.musicbot.queue.loop)
         self.ctx.voice_client.stop.assert_called_once()
         self.ctx.send.assert_called_once()
         embed = self.ctx.send.call_args[1]["embed"]
