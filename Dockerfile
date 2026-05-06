@@ -3,7 +3,7 @@ FROM python:3.11-slim-bookworm
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install -y ffmpeg curl unzip libffi-dev \
+    && apt-get install -y ffmpeg curl unzip build-essential libffi-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -23,7 +23,6 @@ VOLUME ["/data"]
 
 ENV MAX_CACHE_FILES=100
 ENV IDLE_TIMER=180
-ENV UPDATE_ON_RESTART=true
 ENV STARTUP_CHANNEL_ID=0
 
-CMD ["sh", "-c", "if [ \"$UPDATE_ON_RESTART\" = \"true\" ]; then pip install --no-cache-dir --upgrade -r requirements.txt; fi && python3 /app/main.py"]
+CMD ["python3", "/app/main.py"]

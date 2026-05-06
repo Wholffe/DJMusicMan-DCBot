@@ -15,8 +15,8 @@ client = commands.Bot(command_prefix="/", intents=intents)
 
 
 async def main():
-    await client.add_cog(MusicBot(client))
     load_dotenv()
+    await client.add_cog(MusicBot(client))
     DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
     if DISCORD_TOKEN is None:
         raise ValueError("DISCORD_TOKEN environment variable not set.")
