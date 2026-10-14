@@ -1,29 +1,31 @@
 import random
 
+Song = tuple[str, str]  # (url, title)
+
 
 class MusicQueue:
     """Handles the song queue for the music bot."""
 
-    def __init__(self):
-        self.queue = []
-        self.current_song = None
+    def __init__(self) -> None:
+        self.queue: list[Song] = []
+        self.current_song: Song | None = None
         self.loop = False
         self._skip_current = False
 
-    def add_song(self, url, title) -> None:
+    def add_song(self, url: str, title: str) -> None:
         self.queue.append((url, title))
 
-    def add_song_first(self, url, title) -> None:
+    def add_song_first(self, url: str, title: str) -> None:
         self.queue.insert(0, (url, title))
 
-    def get_next_song(self):
+    def get_next_song(self) -> Song | None:
         if self.loop and self.current_song and not self._skip_current:
             self.queue.insert(0, self.current_song)
         self._skip_current = False
         self.current_song = self.queue.pop(0) if self.queue else None
         return self.current_song
 
-    def clear(self):
+    def clear(self) -> None:
         self.queue.clear()
         self.current_song = None
 
@@ -36,17 +38,13 @@ class MusicQueue:
         return self.current_song[1]
 
     def list_queue(self) -> str:
-        if not self.queue:
-            return ""
-        queue_list = [f"{i + 1}. {song[1]}" for i, song in enumerate(self.queue)]
-        queue_list = "\n".join(queue_list)
-        return queue_list
+        return "\n".join(f"{i + 1}. {song[1]}" for i, song in enumerate(self.queue))
 
     def list_queue_with_limit(self, max_length: int = 800) -> tuple[str, int]:
         if not self.queue:
             return "", 0
         current_length = 0
-        displayed_songs = []
+        displayed_songs: list[str] = []
         remaining_songs = 0
 
         for song in self.queue:
@@ -72,7 +70,7 @@ class MusicQueue:
         self._skip_current = True
         ctx.voice_client.stop()
 
-    def remove_song(self, index):
+    def remove_song(self, index: int) -> Song | None:
         if 0 <= index < len(self.queue):
             return self.queue.pop(index)
         return None

@@ -1,15 +1,7 @@
 import unittest
-from collections.abc import Callable
-from typing import Any, cast
 from unittest.mock import MagicMock
 
-from music_bot import logger as logger_module
-
-# music_bot.logger rebinds `log_command` to the decorator bound to the module
-# logger, but type checkers still see the factory signature.
-log_command = cast(
-    Callable[[Callable[..., Any]], Callable[..., Any]], logger_module.log_command
-)
+from music_bot.logger import log_command
 
 
 class TestLogCommand(unittest.IsolatedAsyncioTestCase):

@@ -1,3 +1,5 @@
+from typing import Any
+
 import discord
 
 
@@ -16,10 +18,10 @@ class MessageHandler:
         ctx,
         message: str = "",
         title: str = "",
-        color: discord.Color = None,
-        fields: list[dict] = None,
-        footer: str = None,
-    ):
+        color: discord.Color | None = None,
+        fields: list[dict[str, Any]] | None = None,
+        footer: str | None = None,
+    ) -> None:
         embed = discord.Embed(
             description=message, color=color or self.COLORS["default"]
         )
@@ -36,36 +38,41 @@ class MessageHandler:
             embed.set_footer(text=footer)
         await ctx.send(embed=embed)
 
-    async def send_success(self, ctx, message: str):
+    async def send_success(self, ctx, message: str) -> None:
         await self._send_embed(
             ctx,
             message=message,
             color=self.COLORS["success"],
         )
 
-    async def send_error(self, ctx, message: str):
+    async def send_error(self, ctx, message: str) -> None:
         await self._send_embed(
             ctx,
             message=message,
             color=self.COLORS["error"],
         )
 
-    async def send_info(self, ctx, message: str):
+    async def send_info(self, ctx, message: str) -> None:
         await self._send_embed(
             ctx,
             message=message,
             color=self.COLORS["info"],
         )
 
-    async def send_raw(self, ctx, message: str):
+    async def send_raw(self, ctx, message: str) -> None:
         await self._send_embed(ctx, message=message)
 
-    async def send_custom(self, ctx, embed_dict: dict):
+    async def send_colored(self, ctx, message: str, color: discord.Color) -> None:
+        await self._send_embed(ctx, message=message, color=color)
+
+    async def send_custom(self, ctx, embed_dict: dict[str, Any]) -> None:
         await self._send_embed(
             ctx,
             message=embed_dict.get("description", ""),
             title=embed_dict.get("title", ""),
             fields=embed_dict.get("fields"),
             footer=embed_dict.get("footer"),
-            color=self.COLORS.get(embed_dict.get("color"), self.COLORS["default"]),
+            color=self.COLORS.get(
+                embed_dict.get("color", "default"), self.COLORS["default"]
+            ),
         )

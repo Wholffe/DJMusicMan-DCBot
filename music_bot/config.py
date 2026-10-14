@@ -1,7 +1,7 @@
 import os
 
 
-def get_env_int(varname, default):
+def get_env_int(varname: str, default: int) -> int:
     val = os.environ.get(varname, None)
     if val is None or val.strip() == "":
         return default

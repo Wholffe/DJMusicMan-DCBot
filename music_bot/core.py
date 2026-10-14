@@ -1,10 +1,9 @@
 from discord.ext import commands
 
-from music_bot.config import STARTUP_CHANNEL_ID
-from music_bot.constants import VERSION
-from music_bot.logger import logger
-from music_bot.message_handler import MessageHandler
-
+from .config import STARTUP_CHANNEL_ID
+from .constants import VERSION
+from .logger import logger
+from .message_handler import MessageHandler
 from .music_queue import MusicQueue
 from .utils import (
     cm_clear,
@@ -25,14 +24,14 @@ from .utils import (
 
 
 class MusicBot(commands.Cog):
-    def __init__(self, bot):
+    def __init__(self, bot) -> None:
         self.client = bot
         self.queue = MusicQueue()
         self.message_handler = MessageHandler()
         self.client.remove_command("help")
 
     @commands.Cog.listener()
-    async def on_ready(self):
+    async def on_ready(self) -> None:
         info_message = f"{self.client.user} is ready. Version: {VERSION}"
         logger.info(info_message)
 
@@ -45,7 +44,7 @@ class MusicBot(commands.Cog):
         await self.message_handler.send_info(channel, info_message)
 
     @commands.command()
-    async def play(self, ctx, *, search) -> None:
+    async def play(self, ctx, *, search: str) -> None:
         await cm_play(self, ctx, search)
 
     @commands.command()
@@ -89,7 +88,7 @@ class MusicBot(commands.Cog):
         await cm_remove(self, ctx, index)
 
     @commands.command()
-    async def playfirst(self, ctx, *, search) -> None:
+    async def playfirst(self, ctx, *, search: str) -> None:
         await cm_playfirst(self, ctx, search)
 
     @commands.command(aliases=["reset"])

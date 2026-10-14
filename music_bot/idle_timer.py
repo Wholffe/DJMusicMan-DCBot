@@ -7,19 +7,19 @@ from .message_handler import MessageHandler
 
 
 class IdleTimer:
-    def __init__(self):
+    def __init__(self) -> None:
         self.message_handler = MessageHandler()
         self.current_timer = 0
-        self.max_duration_timeout = IDLE_TIMER.get("max_duration_timeout")
-        self.timer_task = None
+        self.max_duration_timeout = IDLE_TIMER["max_duration_timeout"]
+        self.timer_task: asyncio.Task[None] | None = None
 
-    async def handle_idle(self, ctx):
+    async def handle_idle(self, ctx) -> None:
         """Handles the bot's behavior when the queue is empty."""
         if not self.timer_task:
             self.timer_task = asyncio.create_task(self.start_idle_timer(ctx))
         await self.message_handler.send_info(ctx, CONST.MESSAGE_QUEUE_EMPTY_USE_PLAY)
 
-    async def start_idle_timer(self, ctx):
+    async def start_idle_timer(self, ctx) -> None:
         """Starts an idle timer to disconnect the bot after inactivity."""
         self.current_timer = 0
 
@@ -35,5 +35,5 @@ class IdleTimer:
             await self.message_handler.send_info(ctx, CONST.MESSAGE_NO_ACTIVITY_TIMEOUT)
         self.clear_timer_task()
 
-    def clear_timer_task(self):
+    def clear_timer_task(self) -> None:
         self.timer_task = None

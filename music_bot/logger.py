@@ -2,15 +2,19 @@ import functools
 import logging
 import logging.handlers
 import os
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable, Coroutine
 from datetime import datetime
+from typing import Any, Concatenate, ParamSpec, TypeVar
 
-from music_bot.config import DATA_DIR
+from .config import DATA_DIR
 
 LOG_DIR = os.path.join(DATA_DIR, "logs")
 
+P = ParamSpec("P")
+T = TypeVar("T")
 
-def setup_logger():
+
+def setup_logger() -> logging.Logger:
     """Configures and returns a logger instance."""
     os.makedirs(LOG_DIR, exist_ok=True)
 
@@ -38,35 +42,33 @@ def setup_logger():
     return logger
 
 
-def log_command(logger_instance: logging.Logger):
+logger = setup_logger()
+
+
+def log_command(
+    func: Callable[Concatenate[Any, Any, P], Awaitable[T]],
+) -> Callable[Concatenate[Any, Any, P], Coroutine[Any, Any, T]]:
     """A simple decorator to log the execution of a bot command function."""
 
-    def decorator(func: Callable):
-        @functools.wraps(func)
-        async def wrapper(self_or_musicbot, ctx, *args, **kwargs):
-            user = ctx.author
-            command_name = func.__name__
+    @functools.wraps(func)
+    async def wrapper(
+        self_or_musicbot: Any, ctx: Any, *args: P.args, **kwargs: P.kwargs
+    ) -> T:
+        user = ctx.author
+        command_name = func.__name__
 
-            logger_instance.info(
-                f"User '{user}' executed command '{command_name}' with args: {args}"
+        logger.info(
+            f"User '{user}' executed command '{command_name}' with args: {args}"
+        )
+        try:
+            result = await func(self_or_musicbot, ctx, *args, **kwargs)
+            logger.info(f"Finished '{command_name}' execution by user '{user}'.")
+            return result
+        except Exception as e:
+            logger.error(
+                f"Error executing command '{command_name}' for user '{user}': {e}",
+                exc_info=True,
             )
-            try:
-                result = await func(self_or_musicbot, ctx, *args, **kwargs)
-                logger_instance.info(
-                    f"Finished '{command_name}' execution by user '{user}'."
-                )
-                return result
-            except Exception as e:
-                logger_instance.error(
-                    f"Error executing command '{command_name}' for user '{user}': {e}",
-                    exc_info=True,
-                )
-                raise
+            raise
 
-        return wrapper
-
-    return decorator
-
-
-logger = setup_logger()
-log_command = log_command(logger)
+    return wrapper
