@@ -10,7 +10,7 @@ class IdleTimer:
     def __init__(self) -> None:
         self.message_handler = MessageHandler()
         self.current_timer = 0
-        self.max_duration_timeout = IDLE_TIMER["max_duration_timeout"]
+        self.MAX_DURATION_TIMEOUT = IDLE_TIMER["max_duration_timeout"]
         self.timer_task: asyncio.Task[None] | None = None
 
     async def handle_idle(self, ctx) -> None:
@@ -23,7 +23,7 @@ class IdleTimer:
         """Starts an idle timer to disconnect the bot after inactivity."""
         self.current_timer = 0
 
-        while ctx.voice_client and (self.current_timer < self.max_duration_timeout):
+        while ctx.voice_client and (self.current_timer < self.MAX_DURATION_TIMEOUT):
             if ctx.voice_client.is_playing():
                 self.clear_timer_task()
                 return

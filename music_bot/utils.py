@@ -91,7 +91,7 @@ async def _add_songs_to_queue(
     ctx, queue: MusicQueue, search: str, add_to_front: bool = False
 ) -> bool:
     async with ctx.typing():
-        if search.lower().startswith("wwww.youtube.com"):
+        if search.lower().startswith("www.youtube.com"):
             search = f"https://{search}"
 
         songs = await get_song_infos(search)
@@ -181,15 +181,15 @@ async def cm_showq(musicbot, ctx) -> None:
         queue_embed["fields"].append(
             {"name": "Up Next", "value": queue_songs, "inline": False}
         )
-        if remaining_songs > 0:
-            queue_embed["fields"].append(
-                {
-                    "name": "And more...",
-                    "value": f"{remaining_songs} more items",
-                    "inline": False,
-                }
-            )
-    else:
+    if remaining_songs > 0:
+        queue_embed["fields"].append(
+            {
+                "name": "And more...",
+                "value": f"{remaining_songs} more items",
+                "inline": False,
+            }
+        )
+    if not queue_songs and not remaining_songs:
         queue_embed["fields"].append(
             {"name": "Queue", "value": CONST.MESSAGE_QUEUE_EMPTY, "inline": False}
         )

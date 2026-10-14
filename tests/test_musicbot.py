@@ -244,7 +244,7 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
 
     @patch("music_bot.idle_timer.asyncio.sleep", new_callable=AsyncMock)
     async def test_idle_timer_disconnects_after_timeout(self, mock_sleep):
-        self.idle_timer.max_duration_timeout = 3
+        self.idle_timer.MAX_DURATION_TIMEOUT = 3
         self.ctx.voice_client.is_playing.return_value = False
 
         await self.idle_timer.start_idle_timer(self.ctx)
@@ -257,7 +257,7 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
 
     @patch("music_bot.idle_timer.asyncio.sleep", new_callable=AsyncMock)
     async def test_idle_timer_resets_if_music_plays(self, mock_sleep):
-        self.idle_timer.max_duration_timeout = 3
+        self.idle_timer.MAX_DURATION_TIMEOUT = 3
         self.ctx.voice_client.is_playing.side_effect = [False, True]
 
         await self.idle_timer.start_idle_timer(self.ctx)
@@ -419,6 +419,35 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         embed = self.ctx.send.call_args[1]["embed"]
 
         expected_description = f'Command "cm_leave" failed: {error_message}'
+        self.assertEqual(embed.description, expected_description)
+        self.assertEqual(embed.color, discord.Color.red())
+
+    async def test_shuffle_command_error_is_sent_to_ctx(self):
+        error_message = "A critical failure occurred"
+        self.musicbot.queue.shuffle_queue = MagicMock(
+            side_effect=Exception(error_message)
+        )
+
+        command = self._get_command("shuffle")
+        await command(self.ctx)
+
+        self.ctx.send.assert_called_once()
+        embed = self.ctx.send.call_args[1]["embed"]
+        expected_description = f'Command "cm_shuffle" failed: {error_message}'
+        self.assertEqual(embed.description, expected_description)
+        self.assertEqual(embed.color, discord.Color.red())
+
+    @patch("music_bot.utils.join_voice_channel", new_callable=AsyncMock)
+    async def test_play_command_error_is_sent_to_ctx(self, mock_join_voice_channel):
+        error_message = "A critical failure occurred"
+        mock_join_voice_channel.side_effect = Exception(error_message)
+
+        command = self._get_command("play")
+        await command(self.ctx, search="test song")
+
+        self.ctx.send.assert_called_once()
+        embed = self.ctx.send.call_args[1]["embed"]
+        expected_description = f'Command "cm_play" failed: {error_message}'
         self.assertEqual(embed.description, expected_description)
         self.assertEqual(embed.color, discord.Color.red())
 

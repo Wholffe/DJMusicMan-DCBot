@@ -108,6 +108,36 @@ class TestUtilsHelpers(unittest.IsolatedAsyncioTestCase):
         )
 
     @patch("music_bot.utils.get_song_infos", new_callable=AsyncMock)
+    async def test_add_songs_to_queue_prefixes_www_youtube_url(
+        self, mock_get_song_infos
+    ):
+        mock_get_song_infos.return_value = [{"url": "url1", "title": "title1"}]
+
+        await _add_songs_to_queue(self.ctx, self.queue, "www.youtube.com/watch?v=a")
+
+        mock_get_song_infos.assert_called_once_with("https://www.youtube.com/watch?v=a")
+
+    @patch("music_bot.utils.get_song_infos", new_callable=AsyncMock)
+    async def test_add_songs_to_queue_prefixes_www_youtube_url_case_insensitive(
+        self, mock_get_song_infos
+    ):
+        mock_get_song_infos.return_value = [{"url": "url1", "title": "title1"}]
+
+        await _add_songs_to_queue(self.ctx, self.queue, "WWW.YouTube.com/watch?v=a")
+
+        mock_get_song_infos.assert_called_once_with("https://WWW.YouTube.com/watch?v=a")
+
+    @patch("music_bot.utils.get_song_infos", new_callable=AsyncMock)
+    async def test_add_songs_to_queue_keeps_full_url(self, mock_get_song_infos):
+        mock_get_song_infos.return_value = [{"url": "url1", "title": "title1"}]
+
+        await _add_songs_to_queue(
+            self.ctx, self.queue, "https://www.youtube.com/watch?v=a"
+        )
+
+        mock_get_song_infos.assert_called_once_with("https://www.youtube.com/watch?v=a")
+
+    @patch("music_bot.utils.get_song_infos", new_callable=AsyncMock)
     async def test_add_songs_to_queue_no_songs(self, mock_get_song_infos):
         mock_get_song_infos.return_value = []
 
@@ -155,13 +185,25 @@ class TestUtilsHelpers(unittest.IsolatedAsyncioTestCase):
         for i in range(100):
             self.queue.add_song(f"url{i}", "x" * 20)
         self.queue.get_next_song()
-        _, remaining = self.queue.list_queue_with_limit()
 
         await cm_showq(self.musicbot, self.ctx)
 
         fields = self._fields()
-        self.assertIn("Up Next", fields)
-        self.assertEqual(fields["And more..."], f"{remaining} more items")
+        self.assertEqual(len(fields["Up Next"].splitlines()), 33)
+        self.assertEqual(fields["And more..."], "67 more items")
+
+    async def test_showq_with_too_long_first_title_shows_remaining(self):
+        self.queue.add_song("url0", "title0")
+        self.queue.add_song("url1", "x" * 800)
+        self.queue.add_song("url2", "title2")
+        self.queue.get_next_song()
+
+        await cm_showq(self.musicbot, self.ctx)
+
+        fields = self._fields()
+        self.assertNotIn("Up Next", fields)
+        self.assertNotIn("Queue", fields)
+        self.assertEqual(fields["And more..."], "2 more items")
 
     async def test_showq_does_not_modify_queue_embed_template(self):
         self.queue.add_song("url1", "title1")

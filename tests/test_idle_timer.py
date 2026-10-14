@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from discord.ext import commands
 
 import music_bot.constants as CONST
+from music_bot.config import IDLE_TIMER
 from music_bot.idle_timer import IdleTimer
 
 
@@ -29,6 +30,11 @@ class TestIdleTimer(unittest.IsolatedAsyncioTestCase):
         embed = self.ctx.send.call_args[1]["embed"]
         self.assertEqual(embed.description, CONST.MESSAGE_QUEUE_EMPTY_USE_PLAY)
 
+    def test_init_reads_timeout_from_config(self):
+        self.assertEqual(
+            self.idle_timer.MAX_DURATION_TIMEOUT, IDLE_TIMER["max_duration_timeout"]
+        )
+
     async def test_clear_timer_task_resets_task(self):
         self.idle_timer.timer_task = MagicMock()
 
@@ -49,7 +55,7 @@ class TestIdleTimer(unittest.IsolatedAsyncioTestCase):
 
     @patch("music_bot.idle_timer.asyncio.sleep", new_callable=AsyncMock)
     async def test_start_idle_timer_counts_up_to_timeout(self, mock_sleep):
-        self.idle_timer.max_duration_timeout = 3
+        self.idle_timer.MAX_DURATION_TIMEOUT = 3
         self.ctx.voice_client.is_playing.return_value = False
 
         await self.idle_timer.start_idle_timer(self.ctx)

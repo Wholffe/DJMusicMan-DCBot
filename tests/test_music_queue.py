@@ -196,17 +196,17 @@ class TestMusicQueue(unittest.TestCase):
         self.assertEqual(songs, "1. title1")
         self.assertEqual(remaining, 1)
 
-    def test_list_queue_with_limit_shows_later_short_song_after_long_one(self):
-        # Current behavior: a song that does not fit is skipped, but later
-        # shorter songs are still shown and numbered consecutively.
+    def test_list_queue_with_limit_stops_at_first_song_that_does_not_fit(self):
+        # Listing stops at the first song that exceeds the limit, so later
+        # shorter songs are counted as remaining and numbers match positions.
         self.queue.add_song("url1", "a")
         self.queue.add_song("url2", "x" * 50)
         self.queue.add_song("url3", "b")
 
         songs, remaining = self.queue.list_queue_with_limit(max_length=20)
 
-        self.assertEqual(songs, "1. a\n2. b")
-        self.assertEqual(remaining, 1)
+        self.assertEqual(songs, "1. a")
+        self.assertEqual(remaining, 2)
 
     def test_list_queue_with_limit_default_limit(self):
         for i in range(100):

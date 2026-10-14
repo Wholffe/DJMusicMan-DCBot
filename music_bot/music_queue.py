@@ -45,17 +45,15 @@ class MusicQueue:
             return "", 0
         current_length = 0
         displayed_songs: list[str] = []
-        remaining_songs = 0
 
-        for song in self.queue:
-            song_str = f"{len(displayed_songs) + 1}. {song[1]}"
+        for index, song in enumerate(self.queue, start=1):
+            song_str = f"{index}. {song[1]}"
             if current_length + len(song_str) >= max_length:
-                remaining_songs += 1
-            else:
-                displayed_songs.append(song_str)
-                current_length += len(song_str)
+                break
+            displayed_songs.append(song_str)
+            current_length += len(song_str)
 
-        return "\n".join(displayed_songs), remaining_songs
+        return "\n".join(displayed_songs), len(self.queue) - len(displayed_songs)
 
     def shuffle_queue(self) -> None:
         random.shuffle(self.queue)

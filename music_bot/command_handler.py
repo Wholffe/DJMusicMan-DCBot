@@ -1,7 +1,10 @@
 import functools
 from collections.abc import Awaitable, Callable, Coroutine
-from typing import Any, Concatenate, ParamSpec
+from typing import Any, ParamSpec
 
+from discord.ext import commands
+
+from .logger import logger
 from .message_handler import MessageHandler
 
 P = ParamSpec("P")
@@ -17,17 +20,33 @@ class CommandHandler:
         self.message_handler = message_handler
 
     def handle_errors(
-        self, func: Callable[Concatenate[Any, P], Awaitable[Any]]
-    ) -> Callable[Concatenate[Any, P], Coroutine[Any, Any, None]]:
+        self, func: Callable[P, Awaitable[Any]]
+    ) -> Callable[P, Coroutine[Any, Any, None]]:
         """
         A decorator that wraps a command function in a try...except block.
+        Errors are sent to the first commands.Context argument, or logged if
+        there is none.
         """
 
         @functools.wraps(func)
-        async def wrapper(ctx: Any, *args: P.args, **kwargs: P.kwargs) -> None:
+        async def wrapper(*args: P.args, **kwargs: P.kwargs) -> None:
             try:
-                await func(ctx, *args, **kwargs)
+                await func(*args, **kwargs)
             except Exception as e:
+                ctx = next(
+                    (
+                        arg
+                        for arg in (*args, *kwargs.values())
+                        if isinstance(arg, commands.Context)
+                    ),
+                    None,
+                )
+                if ctx is None:
+                    logger.error(
+                        f"Command '{func.__name__}' failed without a context: {e}",
+                        exc_info=True,
+                    )
+                    return
                 await self.message_handler.send_error(
                     ctx,
                     f'Command "{func.__name__}" failed: {e}',

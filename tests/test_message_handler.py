@@ -92,6 +92,15 @@ class TestMessageHandler(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(embed.description, "raw")
         self.assertEqual(embed.color, MessageHandler.COLORS["default"])
 
+    async def test_send_colored_uses_given_color(self):
+        color = discord.Color.from_rgb(1, 2, 3)
+
+        await self.message_handler.send_colored(self.ctx, "colored", color)
+
+        embed = self._sent_embed()
+        self.assertEqual(embed.description, "colored")
+        self.assertEqual(embed.color, color)
+
     async def test_send_custom_passes_all_parts(self):
         embed_dict = {
             "title": "Custom",
