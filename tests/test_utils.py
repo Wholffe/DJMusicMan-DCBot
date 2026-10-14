@@ -168,6 +168,89 @@ class TestUtilsHelpers(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(embed.description, CONST.MESSAGE_FAILED_VIDEO_INFO)
         self.assertEqual(embed.color, discord.Color.red())
 
+    @patch.object(DownloadProgress, "finish", new_callable=AsyncMock)
+    @patch("music_bot.utils.get_song_infos", new_callable=AsyncMock)
+    async def test_add_songs_to_queue_finish_edits_instead_of_sending(
+        self, mock_get_song_infos, mock_finish
+    ):
+        mock_get_song_infos.return_value = [{"url": "url1", "title": "title1"}]
+        mock_finish.return_value = True
+
+        result = await _add_songs_to_queue(self.ctx, self.queue, "song")
+
+        self.assertTrue(result)
+        mock_finish.assert_awaited_once_with("Added to the queue: title1", success=True)
+        self.ctx.send.assert_not_called()
+
+    @patch.object(DownloadProgress, "finish", new_callable=AsyncMock)
+    @patch("music_bot.utils.get_song_infos", new_callable=AsyncMock)
+    async def test_add_songs_to_queue_finish_false_sends_success(
+        self, mock_get_song_infos, mock_finish
+    ):
+        mock_get_song_infos.return_value = [{"url": "url1", "title": "title1"}]
+        mock_finish.return_value = False
+
+        result = await _add_songs_to_queue(self.ctx, self.queue, "song")
+
+        self.assertTrue(result)
+        mock_finish.assert_awaited_once_with("Added to the queue: title1", success=True)
+        embed = self._sent_embed()
+        self.assertEqual(embed.description, "Added to the queue: title1")
+        self.assertEqual(embed.color, discord.Color.green())
+
+    @patch.object(DownloadProgress, "finish", new_callable=AsyncMock)
+    @patch("music_bot.utils.get_song_infos", new_callable=AsyncMock)
+    async def test_add_songs_to_queue_error_finishes_progress_and_reraises(
+        self, mock_get_song_infos, mock_finish
+    ):
+        mock_get_song_infos.side_effect = OSError("disk full")
+
+        with self.assertRaises(OSError):
+            await _add_songs_to_queue(self.ctx, self.queue, "song")
+
+        mock_finish.assert_awaited_once_with(
+            CONST.MESSAGE_FAILED_VIDEO_INFO, success=False
+        )
+        self.assertTrue(self.queue.is_empty())
+
+    @patch.object(DownloadProgress, "finish", new_callable=AsyncMock)
+    @patch("music_bot.utils.get_song_infos", new_callable=AsyncMock)
+    async def test_add_songs_to_queue_no_songs_finish_edits_instead_of_sending(
+        self, mock_get_song_infos, mock_finish
+    ):
+        mock_get_song_infos.return_value = []
+        mock_finish.return_value = True
+
+        result = await _add_songs_to_queue(self.ctx, self.queue, "nothing")
+
+        self.assertFalse(result)
+        self.assertTrue(self.queue.is_empty())
+        mock_finish.assert_awaited_once_with(
+            CONST.MESSAGE_FAILED_VIDEO_INFO, success=False
+        )
+        self.ctx.send.assert_not_called()
+
+    @patch("music_bot.utils.get_song_infos", new_callable=AsyncMock)
+    async def test_add_songs_to_queue_edits_sent_progress_message(
+        self, mock_get_song_infos
+    ):
+        sent = MagicMock(spec=discord.Message)
+        sent.edit = AsyncMock()
+
+        async def get_song_infos_with_progress(search, progress):
+            progress.message = sent
+            return [{"url": "url1", "title": "title1"}]
+
+        mock_get_song_infos.side_effect = get_song_infos_with_progress
+
+        result = await _add_songs_to_queue(self.ctx, self.queue, "song")
+
+        self.assertTrue(result)
+        self.ctx.send.assert_not_called()
+        embed = sent.edit.call_args[1]["embed"]
+        self.assertEqual(embed.description, "Added to the queue: title1")
+        self.assertEqual(embed.color, discord.Color.green())
+
     @patch("music_bot.utils.cache_manager")
     async def test_get_song_infos_passes_progress_hook(self, mock_cache_manager):
         mock_cache_manager.get_songs.return_value = [{"url": "u", "title": "t"}]

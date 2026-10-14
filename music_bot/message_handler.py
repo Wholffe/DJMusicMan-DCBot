@@ -67,10 +67,19 @@ class MessageHandler:
             color=self.COLORS["info"],
         )
 
+    async def _edit_embed(
+        self, sent: discord.Message, message: str, color: discord.Color
+    ) -> None:
+        await sent.edit(embed=discord.Embed(description=message, color=color))
+
     async def edit_progress(self, sent: discord.Message, message: str) -> None:
-        await sent.edit(
-            embed=discord.Embed(description=message, color=self.COLORS["info"])
-        )
+        await self._edit_embed(sent, message, self.COLORS["info"])
+
+    async def edit_success(self, sent: discord.Message, message: str) -> None:
+        await self._edit_embed(sent, message, self.COLORS["success"])
+
+    async def edit_error(self, sent: discord.Message, message: str) -> None:
+        await self._edit_embed(sent, message, self.COLORS["error"])
 
     async def send_raw(self, ctx, message: str) -> None:
         await self._send_embed(ctx, message=message)

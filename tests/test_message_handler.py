@@ -116,6 +116,30 @@ class TestMessageHandler(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(embed.color, MessageHandler.COLORS["info"])
         self.ctx.send.assert_not_called()
 
+    async def test_edit_success_edits_message_with_success_embed(self):
+        sent = MagicMock(spec=discord.Message)
+        sent.edit = AsyncMock()
+
+        await self.message_handler.edit_success(sent, "done")
+
+        sent.edit.assert_awaited_once()
+        embed = sent.edit.call_args[1]["embed"]
+        self.assertEqual(embed.description, "done")
+        self.assertEqual(embed.color, MessageHandler.COLORS["success"])
+        self.ctx.send.assert_not_called()
+
+    async def test_edit_error_edits_message_with_error_embed(self):
+        sent = MagicMock(spec=discord.Message)
+        sent.edit = AsyncMock()
+
+        await self.message_handler.edit_error(sent, "failed")
+
+        sent.edit.assert_awaited_once()
+        embed = sent.edit.call_args[1]["embed"]
+        self.assertEqual(embed.description, "failed")
+        self.assertEqual(embed.color, MessageHandler.COLORS["error"])
+        self.ctx.send.assert_not_called()
+
     async def test_send_raw_uses_default_color(self):
         await self.message_handler.send_raw(self.ctx, "raw")
 

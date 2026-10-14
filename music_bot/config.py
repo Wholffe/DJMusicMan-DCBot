@@ -11,6 +11,7 @@ def get_env_int(varname: str, default: int) -> int:
 STARTUP_CHANNEL_ID = get_env_int("STARTUP_CHANNEL_ID", 0)
 DATA_DIR = "./data"
 CACHE_DIR = os.path.join(DATA_DIR, "cache")
+COOKIES_FILE_PATH = os.path.join(DATA_DIR, "cookies.txt")
 PREFERED_AUDIO_FORMAT = "webm"
 
 FFMPEG_OPTIONS = {
@@ -24,7 +25,6 @@ YDLP_OPTIONS = {
     "quiet": True,
     "geo_bypass": True,
     "outtmpl": os.path.join(CACHE_DIR, "%(id)s.%(ext)s"),
-    "cookiefile": os.path.join(DATA_DIR, "cookies.txt"),
 }
 
 IDLE_TIMER = {"max_duration_timeout": get_env_int("IDLE_TIMER", 180)}

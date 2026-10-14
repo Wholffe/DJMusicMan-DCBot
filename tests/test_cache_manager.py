@@ -4,7 +4,10 @@ import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
 
-from yt_dlp.utils import DownloadError  # type: ignore[import-untyped]
+from yt_dlp.utils import (  # type: ignore[import-untyped]
+    DownloadError,
+    ExtractorError,
+)
 
 from music_bot.cache_manager import CacheManager, _create_ydl
 from music_bot.config import YDLP_OPTIONS
@@ -19,6 +22,14 @@ class TestCacheManager(unittest.TestCase):
         cache_dir_patcher = patch("music_bot.cache_manager.CACHE_DIR", self.cache_dir)
         cache_dir_patcher.start()
         self.addCleanup(cache_dir_patcher.stop)
+
+        # Keep a real data/cookies.txt from changing the yt-dlp options
+        self.cookies_path = os.path.join(tmp_dir.name, "cookies.txt")
+        cookies_patcher = patch(
+            "music_bot.cache_manager.COOKIES_FILE_PATH", self.cookies_path
+        )
+        cookies_patcher.start()
+        self.addCleanup(cookies_patcher.stop)
 
         ydl_patcher = patch("music_bot.cache_manager.yt_dlp.YoutubeDL")
         self.mock_ydl_cls = ydl_patcher.start()
@@ -235,6 +246,76 @@ class TestCacheManager(unittest.TestCase):
         self.assertEqual(
             songs, [{"url": self._song_path(entry), "title": "Unknown Title"}]
         )
+
+    def test_ydlp_options_have_no_cookiefile(self):
+        self.assertNotIn("cookiefile", YDLP_OPTIONS)
+
+    def test_create_ydl_without_cookie_file_has_no_cookiefile(self):
+        _create_ydl()
+
+        params = self.mock_ydl_cls.call_args[0][0]
+        self.assertNotIn("cookiefile", params)
+        self.assertFalse(os.path.exists(self.cookies_path))
+
+    def test_create_ydl_with_cookie_file_sets_cookiefile(self):
+        with open(self.cookies_path, "w", encoding="utf-8") as f:
+            f.write("# Netscape HTTP Cookie File\n")
+
+        _create_ydl(download=True)
+
+        params = self.mock_ydl_cls.call_args[0][0]
+        self.assertEqual(params["cookiefile"], self.cookies_path)
+        self.assertNotIn("cookiefile", YDLP_OPTIONS)
+
+    def test_create_ydl_cookie_path_is_directory_has_no_cookiefile(self):
+        os.makedirs(self.cookies_path)
+
+        _create_ydl()
+
+        self.assertNotIn("cookiefile", self.mock_ydl_cls.call_args[0][0])
+
+    def test_download_song_if_missing_download_error_returns_none(self):
+        manager = CacheManager()
+        self.ydl.download.side_effect = DownloadError("failed")
+
+        self.assertIsNone(manager._download_song_if_missing(self._entry("a")))
+
+    def test_download_song_if_missing_extractor_error_returns_none(self):
+        manager = CacheManager()
+        self.ydl.download.side_effect = ExtractorError("failed")
+
+        self.assertIsNone(manager._download_song_if_missing(self._entry("a")))
+
+    def test_process_entries_skips_entry_with_failed_download(self):
+        manager = CacheManager()
+        self._write_song_file("b")
+        failing_url = self._entry("a")["webpage_url"]
+
+        def download(urls: list[str]) -> None:
+            if urls == [failing_url]:
+                raise DownloadError("failed")
+
+        self.ydl.download.side_effect = download
+
+        songs = manager._process_entries(
+            [self._entry("a"), self._entry("b"), self._entry("c")]
+        )
+
+        self.assertEqual(
+            songs,
+            [
+                {"url": self._song_path(self._entry("b")), "title": "title b"},
+                {"url": self._song_path(self._entry("c")), "title": "title c"},
+            ],
+        )
+
+    def test_get_songs_cached_with_failing_download_returns_empty(self):
+        self._write_metadata({"search": self._entry("a")})
+        manager = CacheManager()
+        self.ydl.download.side_effect = DownloadError("failed")
+
+        self.assertEqual(manager.get_songs("search"), [])
+        self.assertEqual(manager.metadata_cache, {"search": self._entry("a")})
 
     def test_enforce_cache_limit_removes_oldest_entry_and_file(self):
         manager = CacheManager()

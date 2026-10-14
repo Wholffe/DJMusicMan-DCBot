@@ -6,7 +6,8 @@ from typing import TYPE_CHECKING, Any, cast
 import yt_dlp  # type: ignore[import-untyped]
 from yt_dlp.utils import DownloadError, ExtractorError  # type: ignore[import-untyped]
 
-from .config import CACHE_DIR, MAX_CACHE_FILES, YDLP_OPTIONS
+from .config import CACHE_DIR, COOKIES_FILE_PATH, MAX_CACHE_FILES, YDLP_OPTIONS
+from .logger import logger
 
 if TYPE_CHECKING:
     # Private names from typeshed's yt-dlp stubs (bundled with pyright)
@@ -24,6 +25,10 @@ def _create_ydl(
     params = {**YDLP_OPTIONS, "skip_download": False} if download else YDLP_OPTIONS
     if progress_hook:
         params = {**params, "progress_hooks": [progress_hook]}
+    # Without a cookie file yt-dlp would create one and save stale anonymous
+    # session cookies to it, which later leads to HTTP 403 errors
+    if os.path.isfile(COOKIES_FILE_PATH):
+        params = {**params, "cookiefile": COOKIES_FILE_PATH}
     return yt_dlp.YoutubeDL(cast("_Params", params))
 
 
@@ -120,8 +125,14 @@ class CacheManager:
         if os.path.isfile(filepath):
             return filepath
 
-        with _create_ydl(download=True, progress_hook=progress_hook) as ydl_dl:
-            ydl_dl.download([entry["webpage_url"]])
+        try:
+            with _create_ydl(download=True, progress_hook=progress_hook) as ydl_dl:
+                ydl_dl.download([entry["webpage_url"]])
+        except (DownloadError, ExtractorError):
+            logger.warning(
+                f"Failed to download '{entry['webpage_url']}'", exc_info=True
+            )
+            return None
 
         return filepath
 
@@ -133,6 +144,7 @@ class CacheManager:
             with _create_ydl(download=True, progress_hook=progress_hook) as ydl:
                 info = ydl.extract_info(search, download=True)
         except (DownloadError, ExtractorError):
+            logger.warning(f"Failed to fetch '{search}'", exc_info=True)
             return None
 
         pruned_info = self._prune_metadata(info)

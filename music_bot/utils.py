@@ -97,9 +97,17 @@ async def _add_songs_to_queue(
             search = f"https://{search}"
 
         progress = DownloadProgress(ctx, asyncio.get_running_loop(), message_handler)
-        songs = await get_song_infos(search, progress)
+        try:
+            songs = await get_song_infos(search, progress)
+        except Exception:
+            # Don't leave the progress message behind, handle_errors reports the error
+            await progress.finish(CONST.MESSAGE_FAILED_VIDEO_INFO, success=False)
+            raise
         if not songs:
-            await message_handler.send_error(ctx, CONST.MESSAGE_FAILED_VIDEO_INFO)
+            if not await progress.finish(
+                CONST.MESSAGE_FAILED_VIDEO_INFO, success=False
+            ):
+                await message_handler.send_error(ctx, CONST.MESSAGE_FAILED_VIDEO_INFO)
             return False
 
         add_song = queue.add_song_first if add_to_front else queue.add_song
@@ -112,7 +120,8 @@ async def _add_songs_to_queue(
         else:
             message = f"Added to the {queue_position}: {songs[0]['title']}"
 
-        await message_handler.send_success(ctx, message)
+        if not await progress.finish(message, success=True):
+            await message_handler.send_success(ctx, message)
         return True
 
 

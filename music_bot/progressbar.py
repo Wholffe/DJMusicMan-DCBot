@@ -26,7 +26,7 @@ def render_progress_bar(downloaded: int, total: int | None, width: int = 20) -> 
 
 
 class DownloadProgress:
-    """Shows yt-dlp download progress in one Discord message per song."""
+    """Shows yt-dlp download progress in one Discord message per command."""
 
     def __init__(
         self,
@@ -37,9 +37,11 @@ class DownloadProgress:
         self.ctx = ctx
         self.loop = loop
         self.message_handler = message_handler
-        self.messages: dict[str, discord.Message] = {}
+        self.message: discord.Message | None = None
         self.lock = asyncio.Lock()
-        self.last_updates: dict[str, float] = {}
+        self.song_key: str | None = None
+        self.last_update: float | None = None
+        self.done = False
 
     def __call__(self, status: dict[str, Any]) -> None:
         """Receives yt-dlp progress events in the download thread."""
@@ -55,20 +57,23 @@ class DownloadProgress:
         if not finished and status["status"] != "downloading":
             return
 
-        title = status["info_dict"].get("title", "Unknown Title")
-        key = status["info_dict"].get("id", title)
-        if finished and key not in self.last_updates:
+        info = status["info_dict"]
+        title = info.get("title", "Unknown Title")
+        key = info.get("id", title)
+        new_song = key != self.song_key
+        if finished and new_song:
             return  # file was already cached, nothing was downloaded
 
         now = time.monotonic()
-        last_update = self.last_updates.get(key)
         if (
             not finished
-            and last_update is not None
-            and now - last_update < CONST.PROGRESS_UPDATE_INTERVAL
+            and not new_song
+            and self.last_update is not None
+            and now - self.last_update < CONST.PROGRESS_UPDATE_INTERVAL
         ):
             return
-        self.last_updates[key] = now
+        self.song_key = key
+        self.last_update = now
 
         total = status.get("total_bytes") or status.get("total_bytes_estimate")
         downloaded = status.get("downloaded_bytes", 0)
@@ -77,23 +82,48 @@ class DownloadProgress:
             total = total or downloaded
             downloaded = total
 
+        index = info.get("playlist_index")
+        count = info.get("n_entries") or info.get("playlist_count")
+        # Searches are one-entry playlists, so show the counter for real ones only
+        if index and count and count > 1:
+            title = f"{title} ({index}/{count})"
+
         text = f"{CONST.MESSAGE_DOWNLOADING} {title}\n"
         text += render_progress_bar(downloaded, total)
         # Fire and forget, so the download thread never waits for Discord
-        asyncio.run_coroutine_threadsafe(self._update(key, text), self.loop)
+        asyncio.run_coroutine_threadsafe(self._update(text), self.loop)
 
-    async def _update(self, key: str, text: str) -> None:
-        """Sends the progress message for a song or edits it if it exists."""
+    async def _update(self, text: str) -> None:
+        """Sends the progress message or edits it if it exists."""
         async with self.lock:
+            # A late update must not overwrite the final message
+            if self.done:
+                return
             try:
-                if key in self.messages:
-                    await self.message_handler.edit_progress(self.messages[key], text)
+                if self.message is not None:
+                    await self.message_handler.edit_progress(self.message, text)
                 else:
-                    self.messages[key] = await self.message_handler.send_progress(
+                    self.message = await self.message_handler.send_progress(
                         self.ctx, text
                     )
             except Exception:
                 # The future is never awaited, so errors would otherwise be lost
-                logger.warning(
-                    f"Failed to update download progress for '{key}'", exc_info=True
-                )
+                logger.warning("Failed to update download progress", exc_info=True)
+
+    async def finish(self, message: str, success: bool) -> bool:
+        """Turns the progress message into the final message, if one was sent."""
+        async with self.lock:
+            self.done = True
+            if self.message is None:
+                return False
+
+            if success:
+                edit = self.message_handler.edit_success
+            else:
+                edit = self.message_handler.edit_error
+            try:
+                await edit(self.message, message)
+            except discord.HTTPException:
+                logger.warning("Failed to edit download progress", exc_info=True)
+                return False
+            return True

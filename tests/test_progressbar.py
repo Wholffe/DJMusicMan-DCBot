@@ -69,6 +69,8 @@ class TestDownloadProgress(unittest.IsolatedAsyncioTestCase):
             side_effect=lambda ctx, text: MagicMock(spec=discord.Message)
         )
         self.message_handler.edit_progress = AsyncMock()
+        self.message_handler.edit_success = AsyncMock()
+        self.message_handler.edit_error = AsyncMock()
         self.progress = DownloadProgress(self.ctx, self.loop, self.message_handler)
 
         # Collect the scheduled futures so tests can wait for them deterministically
@@ -138,7 +140,7 @@ class TestDownloadProgress(unittest.IsolatedAsyncioTestCase):
 
     async def test_event_after_interval_edits_message(self):
         await self._emit(self._status(), now=100.0)
-        sent = self.progress.messages["Song"]
+        sent = self.progress.message
 
         await self._emit(
             self._status(downloaded=2 * MB), now=100.0 + CONST.PROGRESS_UPDATE_INTERVAL
@@ -173,7 +175,7 @@ class TestDownloadProgress(unittest.IsolatedAsyncioTestCase):
 
     async def test_finished_bypasses_throttle_and_shows_complete(self):
         await self._emit(self._status(), now=100.0)
-        sent = self.progress.messages["Song"]
+        sent = self.progress.message
 
         await self._emit(self._status("finished", downloaded=4 * MB), now=100.1)
 
@@ -184,7 +186,7 @@ class TestDownloadProgress(unittest.IsolatedAsyncioTestCase):
 
     async def test_finished_without_downloaded_bytes_shows_complete(self):
         await self._emit(self._status(), now=100.0)
-        sent = self.progress.messages["Song"]
+        sent = self.progress.message
 
         await self._emit(self._status("finished", downloaded=None), now=100.1)
 
@@ -194,7 +196,7 @@ class TestDownloadProgress(unittest.IsolatedAsyncioTestCase):
 
     async def test_finished_without_total_uses_downloaded_bytes(self):
         await self._emit(self._status(total=None), now=100.0)
-        sent = self.progress.messages["Song"]
+        sent = self.progress.message
 
         await self._emit(
             self._status("finished", downloaded=3 * MB, total=None), now=100.1
@@ -210,29 +212,30 @@ class TestDownloadProgress(unittest.IsolatedAsyncioTestCase):
         self.message_handler.send_progress.assert_not_called()
         self.message_handler.edit_progress.assert_not_called()
         self.assertEqual(self.futures, [])
-        self.assertEqual(self.progress.last_updates, {})
+        self.assertIsNone(self.progress.last_update)
 
-    async def test_new_title_sends_new_message(self):
+    async def test_new_title_edits_same_message_without_throttle(self):
         await self._emit(self._status(title="First"), now=100.0)
+        sent = self.progress.message
 
         await self._emit(self._status(title="Second"), now=100.1)
 
-        self.assertEqual(
-            [c.args[1] for c in self.message_handler.send_progress.await_args_list],
-            [self._text("First", MB, 4 * MB), self._text("Second", MB, 4 * MB)],
+        self.message_handler.send_progress.assert_awaited_once_with(
+            self.ctx, self._text("First", MB, 4 * MB)
         )
-        self.message_handler.edit_progress.assert_not_called()
-        self.assertEqual(set(self.progress.messages), {"First", "Second"})
+        self.message_handler.edit_progress.assert_awaited_once_with(
+            sent, self._text("Second", MB, 4 * MB)
+        )
 
-    async def test_new_title_right_after_finished_is_sent(self):
+    async def test_new_title_right_after_finished_is_shown(self):
         await self._emit(self._status(title="First"), now=100.0)
         await self._emit(self._status("finished", title="First"), now=100.0)
 
         await self._emit(self._status(title="Second"), now=100.0)
 
-        self.assertEqual(self.message_handler.send_progress.await_count, 2)
+        self.message_handler.send_progress.assert_awaited_once()
         self.assertEqual(
-            self.message_handler.send_progress.call_args[0][1],
+            self.message_handler.edit_progress.call_args[0][1],
             self._text("Second", MB, 4 * MB),
         )
 
@@ -249,20 +252,20 @@ class TestDownloadProgress(unittest.IsolatedAsyncioTestCase):
         self.message_handler.send_progress.assert_not_called()
         self.message_handler.edit_progress.assert_not_called()
         self.assertEqual(self.futures, [])
-        self.assertEqual(self.progress.last_updates, {})
+        self.assertIsNone(self.progress.last_update)
 
-    async def test_same_title_with_different_ids_sends_two_messages(self):
+    async def test_same_title_with_different_ids_is_not_throttled(self):
         await self._emit(self._status(song_id="id1"), now=100.0)
 
         await self._emit(self._status(song_id="id2"), now=100.1)
 
-        self.assertEqual(self.message_handler.send_progress.await_count, 2)
-        self.message_handler.edit_progress.assert_not_called()
-        self.assertEqual(set(self.progress.messages), {"id1", "id2"})
+        self.message_handler.send_progress.assert_awaited_once()
+        self.message_handler.edit_progress.assert_awaited_once()
+        self.assertEqual(self.progress.song_key, "id2")
 
     async def test_id_is_used_as_key_for_followup_events(self):
         await self._emit(self._status(song_id="id1"), now=100.0)
-        sent = self.progress.messages["id1"]
+        sent = self.progress.message
 
         await self._emit(self._status("finished", song_id="id1"), now=100.1)
 
@@ -304,23 +307,22 @@ class TestDownloadProgress(unittest.IsolatedAsyncioTestCase):
         self.message_handler.send_progress.side_effect = RuntimeError("boom")
 
         with self.assertLogs("MusicBot", level=logging.WARNING) as logs:
-            await self.progress._update("Song", "text")
+            await self.progress._update("text")
 
         self.assertEqual(len(logs.records), 1)
-        self.assertIn("Song", logs.output[0])
-        self.assertNotIn("Song", self.progress.messages)
+        self.assertIsNone(self.progress.message)
 
     async def test_update_edit_runtime_error_logs_warning(self):
         sent = MagicMock(spec=discord.Message)
-        self.progress.messages["Song"] = sent
+        self.progress.message = sent
         self.message_handler.edit_progress.side_effect = RuntimeError("boom")
 
         with self.assertLogs("MusicBot", level=logging.WARNING) as logs:
-            await self.progress._update("Song", "text")
+            await self.progress._update("text")
 
         self.assertEqual(len(logs.records), 1)
         self.message_handler.edit_progress.assert_awaited_once_with(sent, "text")
-        self.assertIs(self.progress.messages["Song"], sent)
+        self.assertIs(self.progress.message, sent)
 
     async def test_update_send_http_exception_logs_warning(self):
         self.message_handler.send_progress.side_effect = discord.HTTPException(
@@ -328,25 +330,155 @@ class TestDownloadProgress(unittest.IsolatedAsyncioTestCase):
         )
 
         with self.assertLogs("MusicBot", level=logging.WARNING) as logs:
-            await self.progress._update("Song", "text")
+            await self.progress._update("text")
 
         self.assertEqual(len(logs.records), 1)
-        self.assertIn("Song", logs.output[0])
-        self.assertNotIn("Song", self.progress.messages)
+        self.assertIsNone(self.progress.message)
 
     async def test_update_edit_http_exception_logs_warning(self):
         sent = MagicMock(spec=discord.Message)
-        self.progress.messages["Song"] = sent
+        self.progress.message = sent
         self.message_handler.edit_progress.side_effect = discord.HTTPException(
             MagicMock(status=500), "boom"
         )
 
         with self.assertLogs("MusicBot", level=logging.WARNING) as logs:
-            await self.progress._update("Song", "text")
+            await self.progress._update("text")
 
         self.assertEqual(len(logs.records), 1)
         self.message_handler.edit_progress.assert_awaited_once_with(sent, "text")
-        self.assertIs(self.progress.messages["Song"], sent)
+        self.assertIs(self.progress.message, sent)
+
+    def _playlist_status(self, **info: Any) -> dict[str, Any]:
+        status = self._status()
+        status["info_dict"].update(info)
+        return status
+
+    async def test_playlist_index_with_n_entries_shows_counter(self):
+        await self._emit(self._playlist_status(playlist_index=2, n_entries=20))
+
+        self.message_handler.send_progress.assert_awaited_once_with(
+            self.ctx, self._text("Song (2/20)", MB, 4 * MB)
+        )
+
+    async def test_playlist_index_with_playlist_count_shows_counter(self):
+        await self._emit(self._playlist_status(playlist_index=3, playlist_count=7))
+
+        self.message_handler.send_progress.assert_awaited_once_with(
+            self.ctx, self._text("Song (3/7)", MB, 4 * MB)
+        )
+
+    async def test_playlist_n_entries_takes_precedence_over_playlist_count(self):
+        await self._emit(
+            self._playlist_status(playlist_index=1, n_entries=5, playlist_count=9)
+        )
+
+        self.message_handler.send_progress.assert_awaited_once_with(
+            self.ctx, self._text("Song (1/5)", MB, 4 * MB)
+        )
+
+    async def test_playlist_without_index_shows_no_counter(self):
+        await self._emit(self._playlist_status(n_entries=20))
+
+        self.message_handler.send_progress.assert_awaited_once_with(
+            self.ctx, self._text("Song", MB, 4 * MB)
+        )
+
+    async def test_playlist_index_without_count_shows_no_counter(self):
+        await self._emit(self._playlist_status(playlist_index=2))
+
+        self.message_handler.send_progress.assert_awaited_once_with(
+            self.ctx, self._text("Song", MB, 4 * MB)
+        )
+
+    async def test_single_search_result_shows_no_counter(self):
+        await self._emit(self._playlist_status(playlist_index=1, n_entries=1))
+
+        self.message_handler.send_progress.assert_awaited_once_with(
+            self.ctx, self._text("Song", MB, 4 * MB)
+        )
+
+    async def test_finish_without_message_returns_false_and_does_not_edit(self):
+        result = await self.progress.finish("done", success=True)
+
+        self.assertFalse(result)
+        self.assertTrue(self.progress.done)
+        self.message_handler.edit_success.assert_not_called()
+        self.message_handler.edit_error.assert_not_called()
+        self.ctx.send.assert_not_called()
+
+    async def test_finish_success_edits_message_with_success(self):
+        await self._emit(self._status())
+        sent = self.progress.message
+
+        result = await self.progress.finish("Added", success=True)
+
+        self.assertTrue(result)
+        self.message_handler.edit_success.assert_awaited_once_with(sent, "Added")
+        self.message_handler.edit_error.assert_not_called()
+
+    async def test_finish_failure_edits_message_with_error(self):
+        await self._emit(self._status())
+        sent = self.progress.message
+
+        result = await self.progress.finish(
+            CONST.MESSAGE_FAILED_VIDEO_INFO, success=False
+        )
+
+        self.assertTrue(result)
+        self.message_handler.edit_error.assert_awaited_once_with(
+            sent, CONST.MESSAGE_FAILED_VIDEO_INFO
+        )
+        self.message_handler.edit_success.assert_not_called()
+
+    async def test_finish_http_exception_logs_warning_and_returns_false(self):
+        self.progress.message = MagicMock(spec=discord.Message)
+        self.message_handler.edit_success.side_effect = discord.HTTPException(
+            MagicMock(status=500), "boom"
+        )
+
+        with self.assertLogs("MusicBot", level=logging.WARNING) as logs:
+            result = await self.progress.finish("Added", success=True)
+
+        self.assertFalse(result)
+        self.assertEqual(len(logs.records), 1)
+        self.assertIsNotNone(logs.records[0].exc_info)
+        self.assertTrue(self.progress.done)
+
+    async def test_update_after_finish_without_message_sends_nothing(self):
+        await self.progress.finish("done", success=True)
+
+        await self.progress._update("text")
+
+        self.message_handler.send_progress.assert_not_called()
+        self.assertIsNone(self.progress.message)
+
+    async def test_update_after_finish_does_not_edit_final_message(self):
+        await self._emit(self._status())
+        await self.progress.finish("Added", success=True)
+
+        await self._emit(
+            self._status(downloaded=2 * MB),
+            now=100.0 + CONST.PROGRESS_UPDATE_INTERVAL,
+        )
+
+        self.message_handler.send_progress.assert_awaited_once()
+        self.message_handler.edit_progress.assert_not_called()
+
+    async def test_update_scheduled_before_finish_running_after_is_ignored(self):
+        await self._emit(self._status())
+        sent = self.progress.message
+
+        # Schedule an update without yielding, so it can only run after finish
+        self.progress(self._status("finished", downloaded=4 * MB))
+        self.assertEqual(len(self.futures), 2)
+        self.assertFalse(self.futures[1].done())
+        await self.progress.finish("Added", success=True)
+        await asyncio.wrap_future(self.futures[1])
+
+        self.message_handler.edit_success.assert_awaited_once_with(sent, "Added")
+        self.message_handler.edit_progress.assert_not_called()
+        self.message_handler.send_progress.assert_awaited_once()
 
 
 if __name__ == "__main__":
