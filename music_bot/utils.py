@@ -1,17 +1,19 @@
 import asyncio
+import functools
 from concurrent.futures import ThreadPoolExecutor
 
 import discord
 
 from music_bot import constants as CONST
 
-from .cache_manager import CacheManager
+from .cache_manager import CacheManager, ProgressHook
 from .command_handler import CommandHandler
 from .config import FFMPEG_OPTIONS
 from .idle_timer import IdleTimer
 from .logger import log_command
 from .message_handler import MessageHandler
 from .music_queue import MusicQueue
+from .progressbar import DownloadProgress
 
 # region Global Instances
 message_handler = MessageHandler()
@@ -22,16 +24,16 @@ executor = ThreadPoolExecutor(max_workers=5)
 
 
 # region Asynchronous Helpers
-async def get_song_infos(searches: str | list[str]) -> list[dict[str, str]]:
+async def get_song_infos(
+    searches: str | list[str], progress_hook: ProgressHook | None = None
+) -> list[dict[str, str]]:
     """Asynchronously fetches song information using the CacheManager."""
     if isinstance(searches, str):
         searches = [searches]
 
     loop = asyncio.get_running_loop()
-    tasks = [
-        loop.run_in_executor(executor, cache_manager.get_songs, search)
-        for search in searches
-    ]
+    get_songs = functools.partial(cache_manager.get_songs, progress_hook=progress_hook)
+    tasks = [loop.run_in_executor(executor, get_songs, search) for search in searches]
     results = await asyncio.gather(*tasks)
     return [song for result in results for song in result]
 
@@ -94,7 +96,8 @@ async def _add_songs_to_queue(
         if search.lower().startswith("www.youtube.com"):
             search = f"https://{search}"
 
-        songs = await get_song_infos(search)
+        progress = DownloadProgress(ctx, asyncio.get_running_loop(), message_handler)
+        songs = await get_song_infos(search, progress)
         if not songs:
             await message_handler.send_error(ctx, CONST.MESSAGE_FAILED_VIDEO_INFO)
             return False

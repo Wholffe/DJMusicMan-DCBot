@@ -6,10 +6,12 @@ import discord
 from discord.ext import commands
 
 import music_bot.constants as CONST
+import music_bot.utils as utils
 from music_bot.core import MusicBot
 from music_bot.idle_timer import IdleTimer
 from music_bot.message_handler import MessageHandler
 from music_bot.music_queue import MusicQueue
+from music_bot.progressbar import DownloadProgress
 from music_bot.utils import play_next
 
 intents = discord.Intents.default()
@@ -47,6 +49,13 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         assert command is not None, f"Command '{name}' is not registered"
         return command
 
+    def _assert_called_with_progress(self, mock_get_song_infos, search: str) -> None:
+        mock_get_song_infos.assert_called_once()
+        args = mock_get_song_infos.call_args.args
+        self.assertEqual(args[0], search)
+        self.assertIsInstance(args[1], DownloadProgress)
+        self.assertIs(args[1].message_handler, utils.message_handler)
+
     @patch("music_bot.utils.is_playing", new_callable=AsyncMock)
     @patch("music_bot.utils.play_next", new_callable=AsyncMock)
     @patch("music_bot.utils.get_song_infos", new_callable=AsyncMock)
@@ -66,7 +75,7 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         await command(self.ctx, search="test search")
 
         mock_join_voice_channel.assert_called_once_with(self.musicbot, self.ctx)
-        mock_get_song_infos.assert_called_once_with("test search")
+        self._assert_called_with_progress(mock_get_song_infos, "test search")
         mock_play_next.assert_called_once_with(
             self.ctx, self.musicbot.queue, self.musicbot.client
         )
@@ -94,7 +103,7 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         await command(self.ctx, search="invalid url")
 
         mock_join_voice_channel.assert_called_once_with(self.musicbot, self.ctx)
-        mock_get_song_infos.assert_called_once_with("invalid url")
+        self._assert_called_with_progress(mock_get_song_infos, "invalid url")
         mock_play_next.assert_not_called()
         self.ctx.send.assert_called_once()
         embed = self.ctx.send.call_args[1]["embed"]
@@ -120,7 +129,7 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         await command(self.ctx, search="test search")
 
         mock_join_voice_channel.assert_called_once_with(self.musicbot, self.ctx)
-        mock_get_song_infos.assert_called_once_with("test search")
+        self._assert_called_with_progress(mock_get_song_infos, "test search")
         self.assertEqual(self.musicbot.queue.queue[0][1], "Test Song")
         mock_play_next.assert_called_once_with(
             self.ctx, self.musicbot.queue, self.musicbot.client

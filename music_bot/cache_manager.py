@@ -1,6 +1,6 @@
 import json
 import os
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from typing import TYPE_CHECKING, Any, cast
 
 import yt_dlp  # type: ignore[import-untyped]
@@ -14,9 +14,16 @@ if TYPE_CHECKING:
     from yt_dlp.extractor.common import _InfoDict  # type: ignore[import-untyped]
 
 
-def _create_ydl(download: bool = False) -> yt_dlp.YoutubeDL:
+ProgressHook = Callable[[dict[str, Any]], None]
+
+
+def _create_ydl(
+    download: bool = False, progress_hook: ProgressHook | None = None
+) -> yt_dlp.YoutubeDL:
     """Creates a YoutubeDL instance from the configured options."""
     params = {**YDLP_OPTIONS, "skip_download": False} if download else YDLP_OPTIONS
+    if progress_hook:
+        params = {**params, "progress_hooks": [progress_hook]}
     return yt_dlp.YoutubeDL(cast("_Params", params))
 
 
@@ -82,14 +89,18 @@ class CacheManager:
 
         self._save_metadata()
 
-    def _process_entries(self, entries: list[dict[str, Any]]) -> list[dict[str, str]]:
+    def _process_entries(
+        self,
+        entries: list[dict[str, Any]],
+        progress_hook: ProgressHook | None = None,
+    ) -> list[dict[str, str]]:
         """Builds a list of songs from entries, ensuring files are downloaded."""
         songs = []
         for entry in entries:
             if not entry:
                 continue
 
-            filepath = self._download_song_if_missing(entry)
+            filepath = self._download_song_if_missing(entry, progress_hook)
             if filepath:
                 songs.append(
                     {
@@ -99,7 +110,9 @@ class CacheManager:
                 )
         return songs
 
-    def _download_song_if_missing(self, entry: dict[str, Any]) -> str | None:
+    def _download_song_if_missing(
+        self, entry: dict[str, Any], progress_hook: ProgressHook | None = None
+    ) -> str | None:
         """Gets the filepath for an entry, downloading the file if it doesn't exist."""
         with _create_ydl() as ydl:
             filepath = ydl.prepare_filename(cast("_InfoDict", entry))
@@ -107,15 +120,17 @@ class CacheManager:
         if os.path.isfile(filepath):
             return filepath
 
-        with _create_ydl(download=True) as ydl_dl:
+        with _create_ydl(download=True, progress_hook=progress_hook) as ydl_dl:
             ydl_dl.download([entry["webpage_url"]])
 
         return filepath
 
-    def _fetch_and_cache_new_song(self, search: str) -> dict[str, Any] | None:
+    def _fetch_and_cache_new_song(
+        self, search: str, progress_hook: ProgressHook | None = None
+    ) -> dict[str, Any] | None:
         """Fetches info and downloads a new song in one step, then caches it."""
         try:
-            with _create_ydl(download=True) as ydl:
+            with _create_ydl(download=True, progress_hook=progress_hook) as ydl:
                 info = ydl.extract_info(search, download=True)
         except (DownloadError, ExtractorError):
             return None
@@ -125,16 +140,18 @@ class CacheManager:
         self._enforce_cache_limit()
         return pruned_info
 
-    def get_songs(self, search: str) -> list[dict[str, str]]:
+    def get_songs(
+        self, search: str, progress_hook: ProgressHook | None = None
+    ) -> list[dict[str, str]]:
         """Main method to get song data using guard clauses for clarity."""
         if search in self.metadata_cache:
             info = self.metadata_cache[search]
-            return self._process_entries(info.get("entries", [info]))
+            return self._process_entries(info.get("entries", [info]), progress_hook)
 
-        new_info = self._fetch_and_cache_new_song(search)
+        new_info = self._fetch_and_cache_new_song(search, progress_hook)
         if not new_info:
             return []
-        return self._process_entries(new_info.get("entries", [new_info]))
+        return self._process_entries(new_info.get("entries", [new_info]), progress_hook)
 
     def clear_cache(self) -> tuple[int, float]:
         """Clears the entire cache and returns the deleted file count and freed MB."""

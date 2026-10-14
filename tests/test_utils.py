@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -6,11 +7,14 @@ import discord
 from discord.ext import commands
 
 import music_bot.constants as CONST
+import music_bot.utils as utils
 from music_bot.music_queue import MusicQueue
+from music_bot.progressbar import DownloadProgress
 from music_bot.utils import (
     _add_songs_to_queue,
     cm_showq,
     get_latency_color,
+    get_song_infos,
     is_bot_only_member_in_vc,
     play_next,
 )
@@ -55,6 +59,15 @@ class TestUtilsHelpers(unittest.IsolatedAsyncioTestCase):
             str(field.name): str(field.value) for field in self._sent_embed().fields
         }
 
+    def _assert_called_with_progress(self, mock_get_song_infos, search: str) -> None:
+        mock_get_song_infos.assert_called_once()
+        args = mock_get_song_infos.call_args.args
+        self.assertEqual(args[0], search)
+        self.assertIsInstance(args[1], DownloadProgress)
+        self.assertIs(args[1].message_handler, utils.message_handler)
+        self.assertIs(args[1].ctx, self.ctx)
+        self.assertIs(args[1].loop, asyncio.get_running_loop())
+
     async def test_is_bot_only_member_in_vc_alone(self):
         self.ctx.voice_client.channel.members = [MagicMock()]
 
@@ -81,7 +94,7 @@ class TestUtilsHelpers(unittest.IsolatedAsyncioTestCase):
         result = await _add_songs_to_queue(self.ctx, self.queue, "playlist")
 
         self.assertTrue(result)
-        mock_get_song_infos.assert_called_once_with("playlist")
+        self._assert_called_with_progress(mock_get_song_infos, "playlist")
         self.assertEqual(
             [song[1] for song in self.queue.queue], ["title0", "title1", "title2"]
         )
@@ -115,7 +128,9 @@ class TestUtilsHelpers(unittest.IsolatedAsyncioTestCase):
 
         await _add_songs_to_queue(self.ctx, self.queue, "www.youtube.com/watch?v=a")
 
-        mock_get_song_infos.assert_called_once_with("https://www.youtube.com/watch?v=a")
+        self._assert_called_with_progress(
+            mock_get_song_infos, "https://www.youtube.com/watch?v=a"
+        )
 
     @patch("music_bot.utils.get_song_infos", new_callable=AsyncMock)
     async def test_add_songs_to_queue_prefixes_www_youtube_url_case_insensitive(
@@ -125,7 +140,9 @@ class TestUtilsHelpers(unittest.IsolatedAsyncioTestCase):
 
         await _add_songs_to_queue(self.ctx, self.queue, "WWW.YouTube.com/watch?v=a")
 
-        mock_get_song_infos.assert_called_once_with("https://WWW.YouTube.com/watch?v=a")
+        self._assert_called_with_progress(
+            mock_get_song_infos, "https://WWW.YouTube.com/watch?v=a"
+        )
 
     @patch("music_bot.utils.get_song_infos", new_callable=AsyncMock)
     async def test_add_songs_to_queue_keeps_full_url(self, mock_get_song_infos):
@@ -135,7 +152,9 @@ class TestUtilsHelpers(unittest.IsolatedAsyncioTestCase):
             self.ctx, self.queue, "https://www.youtube.com/watch?v=a"
         )
 
-        mock_get_song_infos.assert_called_once_with("https://www.youtube.com/watch?v=a")
+        self._assert_called_with_progress(
+            mock_get_song_infos, "https://www.youtube.com/watch?v=a"
+        )
 
     @patch("music_bot.utils.get_song_infos", new_callable=AsyncMock)
     async def test_add_songs_to_queue_no_songs(self, mock_get_song_infos):
@@ -148,6 +167,47 @@ class TestUtilsHelpers(unittest.IsolatedAsyncioTestCase):
         embed = self._sent_embed()
         self.assertEqual(embed.description, CONST.MESSAGE_FAILED_VIDEO_INFO)
         self.assertEqual(embed.color, discord.Color.red())
+
+    @patch("music_bot.utils.cache_manager")
+    async def test_get_song_infos_passes_progress_hook(self, mock_cache_manager):
+        mock_cache_manager.get_songs.return_value = [{"url": "u", "title": "t"}]
+        hook = MagicMock()
+
+        songs = await get_song_infos("search", hook)
+
+        mock_cache_manager.get_songs.assert_called_once_with(
+            "search", progress_hook=hook
+        )
+        self.assertEqual(songs, [{"url": "u", "title": "t"}])
+
+    @patch("music_bot.utils.cache_manager")
+    async def test_get_song_infos_without_hook_passes_none(self, mock_cache_manager):
+        mock_cache_manager.get_songs.return_value = []
+
+        await get_song_infos("search")
+
+        mock_cache_manager.get_songs.assert_called_once_with(
+            "search", progress_hook=None
+        )
+
+    @patch("music_bot.utils.cache_manager")
+    async def test_get_song_infos_list_passes_hook_for_each_search(
+        self, mock_cache_manager
+    ):
+        mock_cache_manager.get_songs.side_effect = lambda search, progress_hook: [
+            {"url": search, "title": search}
+        ]
+        hook = MagicMock()
+
+        songs = await get_song_infos(["a", "b"], hook)
+
+        self.assertEqual([song["title"] for song in songs], ["a", "b"])
+        self.assertEqual(
+            sorted(c.args[0] for c in mock_cache_manager.get_songs.call_args_list),
+            ["a", "b"],
+        )
+        for call in mock_cache_manager.get_songs.call_args_list:
+            self.assertIs(call.kwargs["progress_hook"], hook)
 
     async def test_showq_with_current_song_and_empty_queue(self):
         self.queue.add_song("url1", "title1")

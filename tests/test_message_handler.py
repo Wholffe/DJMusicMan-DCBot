@@ -85,6 +85,37 @@ class TestMessageHandler(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(embed.description, "info")
         self.assertEqual(embed.color, MessageHandler.COLORS["info"])
 
+    async def test_send_embed_returns_sent_message(self):
+        sent = MagicMock(spec=discord.Message)
+        self.ctx.send.return_value = sent
+
+        result = await self.message_handler._send_embed(self.ctx, message="m")
+
+        self.assertIs(result, sent)
+
+    async def test_send_progress_uses_info_color_and_returns_message(self):
+        sent = MagicMock(spec=discord.Message)
+        self.ctx.send.return_value = sent
+
+        result = await self.message_handler.send_progress(self.ctx, "progress")
+
+        embed = self._sent_embed()
+        self.assertEqual(embed.description, "progress")
+        self.assertEqual(embed.color, MessageHandler.COLORS["info"])
+        self.assertIs(result, sent)
+
+    async def test_edit_progress_edits_message_with_info_embed(self):
+        sent = MagicMock(spec=discord.Message)
+        sent.edit = AsyncMock()
+
+        await self.message_handler.edit_progress(sent, "updated")
+
+        sent.edit.assert_awaited_once()
+        embed = sent.edit.call_args[1]["embed"]
+        self.assertEqual(embed.description, "updated")
+        self.assertEqual(embed.color, MessageHandler.COLORS["info"])
+        self.ctx.send.assert_not_called()
+
     async def test_send_raw_uses_default_color(self):
         await self.message_handler.send_raw(self.ctx, "raw")
 

@@ -21,7 +21,7 @@ class MessageHandler:
         color: discord.Color | None = None,
         fields: list[dict[str, Any]] | None = None,
         footer: str | None = None,
-    ) -> None:
+    ) -> discord.Message:
         embed = discord.Embed(
             description=message, color=color or self.COLORS["default"]
         )
@@ -36,7 +36,7 @@ class MessageHandler:
                 )
         if footer:
             embed.set_footer(text=footer)
-        await ctx.send(embed=embed)
+        return await ctx.send(embed=embed)
 
     async def send_success(self, ctx, message: str) -> None:
         await self._send_embed(
@@ -57,6 +57,19 @@ class MessageHandler:
             ctx,
             message=message,
             color=self.COLORS["info"],
+        )
+
+    async def send_progress(self, ctx, message: str) -> discord.Message:
+        """Sends an info message and returns it so it can be edited later."""
+        return await self._send_embed(
+            ctx,
+            message=message,
+            color=self.COLORS["info"],
+        )
+
+    async def edit_progress(self, sent: discord.Message, message: str) -> None:
+        await sent.edit(
+            embed=discord.Embed(description=message, color=self.COLORS["info"])
         )
 
     async def send_raw(self, ctx, message: str) -> None:

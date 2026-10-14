@@ -6,6 +6,9 @@ VERSION: Final = "2.2.8"
 NAME: Final = "DJ Music Man"
 FOOTER: Final = f"{NAME} {VERSION}"
 
+# region Progress
+PROGRESS_UPDATE_INTERVAL: Final = 2.0  # seconds between progress message edits
+
 # region Embeds
 EMBED_DJHELP = {
     "title": f"{NAME} Help",
@@ -79,6 +82,7 @@ MESSAGE_RESTARTING_BOT: Final = "Restarting bot, please wait..."
 MESSAGE_CANNOT_CLEAR_CACHE_WHILE_CONNECTED: Final = (
     "Cannot clear cache while connected to a voice channel."
 )
+MESSAGE_DOWNLOADING: Final = "Downloading:"
 MESSAGE_FAILED_VIDEO_INFO: Final = "Failed to retrieve the video information."
 MESSAGE_NO_ACTIVITY_TIMEOUT: Final = "Bot idle for too long. Leaving the voice channel."
 MESSAGE_NO_USERS_IN_CHANNEL: Final = (

@@ -6,7 +6,8 @@ from unittest.mock import MagicMock, patch
 
 from yt_dlp.utils import DownloadError  # type: ignore[import-untyped]
 
-from music_bot.cache_manager import CacheManager
+from music_bot.cache_manager import CacheManager, _create_ydl
+from music_bot.config import YDLP_OPTIONS
 
 
 class TestCacheManager(unittest.TestCase):
@@ -140,6 +141,68 @@ class TestCacheManager(unittest.TestCase):
         )
         self.assertEqual(manager.metadata_cache, {"new search": self._entry("a")})
         self.assertEqual(self._read_metadata(), {"new search": self._entry("a")})
+
+    def _ydl_params(self) -> list[dict]:
+        return [c.args[0] for c in self.mock_ydl_cls.call_args_list]
+
+    def test_create_ydl_without_hook_has_no_progress_hooks(self):
+        _create_ydl(download=True)
+
+        params = self.mock_ydl_cls.call_args[0][0]
+        self.assertNotIn("progress_hooks", params)
+        self.assertFalse(params["skip_download"])
+
+    def test_create_ydl_with_hook_sets_progress_hooks(self):
+        hook = MagicMock()
+
+        _create_ydl(download=True, progress_hook=hook)
+
+        params = self.mock_ydl_cls.call_args[0][0]
+        self.assertEqual(params["progress_hooks"], [hook])
+        self.assertFalse(params["skip_download"])
+        self.assertNotIn("progress_hooks", YDLP_OPTIONS)
+
+    def test_create_ydl_info_only_with_hook_keeps_options(self):
+        hook = MagicMock()
+
+        _create_ydl(progress_hook=hook)
+
+        params = self.mock_ydl_cls.call_args[0][0]
+        self.assertEqual(params, {**YDLP_OPTIONS, "progress_hooks": [hook]})
+        self.assertNotIn("progress_hooks", YDLP_OPTIONS)
+
+    def test_get_songs_new_search_passes_progress_hook(self):
+        manager = CacheManager()
+        self.ydl.extract_info.return_value = self._entry("a")
+        self._write_song_file("a")
+        hook = MagicMock()
+
+        manager.get_songs("new search", progress_hook=hook)
+
+        download_params = [p for p in self._ydl_params() if "skip_download" in p]
+        self.assertEqual(len(download_params), 1)
+        self.assertEqual(download_params[0]["progress_hooks"], [hook])
+
+    def test_get_songs_cached_with_missing_file_passes_progress_hook(self):
+        self._write_metadata({"search": self._entry("a")})
+        manager = CacheManager()
+        hook = MagicMock()
+
+        manager.get_songs("search", progress_hook=hook)
+
+        download_params = [p for p in self._ydl_params() if "skip_download" in p]
+        self.assertEqual(len(download_params), 1)
+        self.assertEqual(download_params[0]["progress_hooks"], [hook])
+        self.ydl.download.assert_called_once_with([self._entry("a")["webpage_url"]])
+
+    def test_get_songs_without_hook_sets_no_progress_hooks(self):
+        self._write_metadata({"search": self._entry("a")})
+        manager = CacheManager()
+
+        manager.get_songs("search")
+
+        for params in self._ydl_params():
+            self.assertNotIn("progress_hooks", params)
 
     def test_get_songs_playlist_returns_all_entries(self):
         manager = CacheManager()
