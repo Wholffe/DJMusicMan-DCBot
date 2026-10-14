@@ -22,16 +22,19 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install flake8 pytest
+        pip install ruff pytest
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
     - name: Install ffmpeg
       run: sudo apt-get install -y ffmpeg
 
-    - name: Lint with flake8
+    - name: Lint with ruff
       run: |
-        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        # Blocking: syntax errors and undefined names
+        ruff check . --select=E9,F63,F7,F82 --output-format=full
+        # Non-blocking until the style guide backlog is cleaned up (see style guide, known deviations)
+        ruff check . --exit-zero --statistics
+        ruff format --check . || true
 
     - name: Prepare /data folder for tests
       run: |
