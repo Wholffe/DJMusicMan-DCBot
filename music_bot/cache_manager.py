@@ -1,6 +1,5 @@
 import json
 import os
-from typing import Dict, List, Optional
 
 import yt_dlp
 from yt_dlp.utils import DownloadError, ExtractorError
@@ -20,23 +19,23 @@ class CacheManager:
         os.makedirs(CACHE_DIR, exist_ok=True)
         self.metadata_cache = self._load_metadata()
 
-    def _load_metadata(self) -> Dict:
+    def _load_metadata(self) -> dict:
         if not os.path.isfile(self.METADATA_CACHE_FILE_PATH):
             return {}
         try:
-            with open(self.METADATA_CACHE_FILE_PATH, "r", encoding="utf-8") as f:
+            with open(self.METADATA_CACHE_FILE_PATH, encoding="utf-8") as f:
                 return json.load(f)
-        except (json.JSONDecodeError, IOError):
+        except (OSError, json.JSONDecodeError):
             return {}
 
     def _save_metadata(self):
         with open(self.METADATA_CACHE_FILE_PATH, "w", encoding="utf-8") as f:
             json.dump(self.metadata_cache, f, indent=4)
 
-    def _prune_metadata(self, full_info: Dict) -> Dict:
+    def _prune_metadata(self, full_info: dict) -> dict:
         """Reduces the full yt-dlp metadata to only the essential keys."""
 
-        def get_essentials(entry: Dict) -> Dict:
+        def get_essentials(entry: dict) -> dict:
             return {
                 "id": entry.get("id"),
                 "title": entry.get("title"),
@@ -67,7 +66,7 @@ class CacheManager:
 
         self._save_metadata()
 
-    def _process_entries(self, entries: List[Dict]) -> List[Dict[str, str]]:
+    def _process_entries(self, entries: list[dict]) -> list[dict[str, str]]:
         """Builds a list of songs from entries, ensuring files are downloaded."""
         songs = []
         for entry in entries:
@@ -84,7 +83,7 @@ class CacheManager:
                 )
         return songs
 
-    def _download_song_if_missing(self, entry: Dict) -> Optional[str]:
+    def _download_song_if_missing(self, entry: dict) -> str | None:
         """Gets the filepath for an entry, downloading the file if it doesn't exist."""
         with yt_dlp.YoutubeDL(YDLP_OPTIONS) as ydl:
             filepath = ydl.prepare_filename(entry)
@@ -99,7 +98,7 @@ class CacheManager:
 
         return filepath
 
-    def _fetch_and_cache_new_song(self, search: str) -> Optional[Dict]:
+    def _fetch_and_cache_new_song(self, search: str) -> dict | None:
         """Fetches info and downloads a new song in one step, then caches it."""
         opts = YDLP_OPTIONS.copy()
         opts["skip_download"] = False
@@ -114,7 +113,7 @@ class CacheManager:
         self._enforce_cache_limit()
         return pruned_info
 
-    def get_songs(self, search: str) -> List[Dict[str, str]]:
+    def get_songs(self, search: str) -> list[dict[str, str]]:
         """Main method to get song data using guard clauses for clarity."""
         if search in self.metadata_cache:
             info = self.metadata_cache[search]

@@ -1,5 +1,4 @@
 import asyncio
-import sys
 from concurrent.futures import ThreadPoolExecutor
 
 import discord
@@ -161,6 +160,7 @@ async def cm_skip(musicbot, ctx):
         return
     musicbot.queue.skip_current_song(ctx)
     await message_handler.send_success(ctx, CONST.MESSAGE_SKIPPED_SONG)
+
 
 @command_handler.handle_errors
 async def cm_showq(musicbot, ctx):

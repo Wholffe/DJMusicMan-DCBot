@@ -2,8 +2,8 @@ import functools
 import logging
 import logging.handlers
 import os
+from collections.abc import Callable
 from datetime import datetime
-from typing import Callable
 
 from music_bot.config import DATA_DIR
 
