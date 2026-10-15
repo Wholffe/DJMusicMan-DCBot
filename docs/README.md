@@ -12,13 +12,13 @@ It supports essential music control commands such as playing, skipping, and queu
 
 ## Setup and Installation
 
-### 1️ Clone the Repository
+### 1. Clone the Repository
 ```bash
 git clone https://github.com/Wholffe/DJMusicMan-DCBot.git
 cd DJMusicMan-DCBot
 ```
 
-### 2️ Create the Configuration File (.env)
+### 2. Create the Configuration File (.env)
 Create a `.env` file in the root of the project directory:
 ```dotenv
 # --- Required ---
@@ -36,11 +36,11 @@ Set `STARTUP_CHANNEL_ID` to the ID of a text channel to have the bot post a read
 Set `GUILD_ID` to the ID of your Discord server to make the commands available there immediately. `0` registers them globally, which can take up to an hour. Switching between both can leave duplicate commands.  
 `DATA_DIR` is the directory for cache, logs and cookies. It defaults to `./data`; the Docker image sets it to `/data` (the mounted volume). When running without Docker, you can change it in `.env`. When using Docker, leave it unset, since a value in `.env` overrides the image setting.
 
-### 3️ Add YouTube Cookies (Optional)
+### 3. Add YouTube Cookies (Optional)
 For playing age-restricted or members-only videos, the bot needs access to a YouTube account's cookies. This step is optional for public videos.  
 [How to Add YouTube Cookies](add_yt_cookies.md)
 
-### 4️ Run the Bot
+### 4. Run the Bot
 **With Docker (Recommended)**
 
   **Windows (PowerShell):**
