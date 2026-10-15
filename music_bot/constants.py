@@ -10,7 +10,7 @@ FOOTER: Final = f"{NAME} {VERSION}"
 PROGRESS_UPDATE_INTERVAL: Final = 2.0  # seconds between progress message edits
 
 # region Embeds
-EMBED_DJHELP = {
+EMBED_HELP = {
     "title": f"{NAME} Help",
     "description": "Here are the available commands:",
     "fields": [
@@ -64,8 +64,8 @@ EMBED_QUEUE = {
 }
 
 
-def get_djhelp_embed():
-    return deepcopy(EMBED_DJHELP)
+def get_help_embed():
+    return deepcopy(EMBED_HELP)
 
 
 def get_queue_embed():

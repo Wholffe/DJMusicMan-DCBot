@@ -6,7 +6,7 @@ import discord
 from discord.ext import commands
 
 import music_bot.constants as CONST
-from music_bot.commands import cm_showq, get_latency_color
+from music_bot.commands import cm_queue, get_latency_color
 from music_bot.music_queue import MusicQueue
 
 GREEN = discord.Color.from_rgb(67, 181, 129)
@@ -30,7 +30,7 @@ class TestGetLatencyColor(unittest.TestCase):
         self.assertEqual(get_latency_color(250), discord.Color.from_rgb(153, 126, 100))
 
 
-class TestCmShowq(unittest.IsolatedAsyncioTestCase):
+class TestCmQueue(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         logging.getLogger("MusicBot").setLevel(logging.CRITICAL + 1)
         self.ctx = MagicMock(spec=commands.Context)
@@ -47,11 +47,11 @@ class TestCmShowq(unittest.IsolatedAsyncioTestCase):
             str(field.name): str(field.value) for field in self._sent_embed().fields
         }
 
-    async def test_showq_with_current_song_and_empty_queue(self):
+    async def test_queue_with_current_song_and_empty_queue(self):
         self.queue.add_song("url1", "title1")
         self.queue.get_next_song()
 
-        await cm_showq(self.musicbot, self.ctx)
+        await cm_queue(self.musicbot, self.ctx)
 
         self.ctx.send.assert_called_once()
         self.assertEqual(
@@ -63,14 +63,14 @@ class TestCmShowq(unittest.IsolatedAsyncioTestCase):
             },
         )
 
-    async def test_showq_with_upcoming_songs_and_loop(self):
+    async def test_queue_with_upcoming_songs_and_loop(self):
         self.queue.add_song("url1", "title1")
         self.queue.add_song("url2", "title2")
         self.queue.add_song("url3", "title3")
         self.queue.get_next_song()
         self.queue.set_loop(True)
 
-        await cm_showq(self.musicbot, self.ctx)
+        await cm_queue(self.musicbot, self.ctx)
 
         fields = self._fields()
         self.assertEqual(fields["Loop Status"], "Enabled")
@@ -78,38 +78,38 @@ class TestCmShowq(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("And more...", fields)
         self.assertNotIn("Queue", fields)
 
-    async def test_showq_with_too_many_songs_shows_remaining(self):
+    async def test_queue_with_too_many_songs_shows_remaining(self):
         self.queue.add_song("url0", "title0")
         for i in range(100):
             self.queue.add_song(f"url{i}", "x" * 20)
         self.queue.get_next_song()
 
-        await cm_showq(self.musicbot, self.ctx)
+        await cm_queue(self.musicbot, self.ctx)
 
         fields = self._fields()
         self.assertEqual(len(fields["Up Next"].splitlines()), 33)
         self.assertEqual(fields["And more..."], "67 more items")
 
-    async def test_showq_with_too_long_first_title_shows_remaining(self):
+    async def test_queue_with_too_long_first_title_shows_remaining(self):
         self.queue.add_song("url0", "title0")
         self.queue.add_song("url1", "x" * 800)
         self.queue.add_song("url2", "title2")
         self.queue.get_next_song()
 
-        await cm_showq(self.musicbot, self.ctx)
+        await cm_queue(self.musicbot, self.ctx)
 
         fields = self._fields()
         self.assertNotIn("Up Next", fields)
         self.assertNotIn("Queue", fields)
         self.assertEqual(fields["And more..."], "2 more items")
 
-    async def test_showq_does_not_modify_queue_embed_template(self):
+    async def test_queue_does_not_modify_queue_embed_template(self):
         self.queue.add_song("url1", "title1")
         self.queue.get_next_song()
 
-        await cm_showq(self.musicbot, self.ctx)
+        await cm_queue(self.musicbot, self.ctx)
         self.ctx.send.reset_mock()
-        await cm_showq(self.musicbot, self.ctx)
+        await cm_queue(self.musicbot, self.ctx)
 
         self.assertEqual(len(self._sent_embed().fields), 3)
 

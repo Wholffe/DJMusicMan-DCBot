@@ -5,18 +5,18 @@ from discord.ext import commands
 from .commands import (
     cm_clear,
     cm_clear_cache,
-    cm_djhelp,
+    cm_help,
     cm_leave,
     cm_loop,
+    cm_pause,
     cm_ping,
     cm_play,
     cm_playfirst,
+    cm_queue,
     cm_remove,
     cm_restart,
-    cm_showq,
     cm_shuffle,
     cm_skip,
-    cm_toggle,
 )
 from .config import STARTUP_CHANNEL_ID
 from .constants import VERSION
@@ -67,7 +67,7 @@ class MusicBot(commands.Cog):
     async def help(self, interaction: discord.Interaction) -> None:
         """Shows all commands."""
         ctx = await commands.Context.from_interaction(interaction)
-        await cm_djhelp(ctx)
+        await cm_help(ctx)
 
     @app_commands.command()
     async def clear(self, interaction: discord.Interaction) -> None:
@@ -79,13 +79,13 @@ class MusicBot(commands.Cog):
     async def show_queue(self, interaction: discord.Interaction) -> None:
         """Shows the current queue."""
         ctx = await commands.Context.from_interaction(interaction)
-        await cm_showq(self, ctx)
+        await cm_queue(self, ctx)
 
     @app_commands.command()
     async def pause(self, interaction: discord.Interaction) -> None:
         """Pauses or resumes playback."""
         ctx = await commands.Context.from_interaction(interaction)
-        await cm_toggle(ctx)
+        await cm_pause(ctx)
 
     @app_commands.command()
     async def leave(self, interaction: discord.Interaction) -> None:

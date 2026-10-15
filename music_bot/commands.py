@@ -46,7 +46,7 @@ async def cm_skip(musicbot, ctx) -> None:
 
 
 @command_handler.handle_errors
-async def cm_showq(musicbot, ctx) -> None:
+async def cm_queue(musicbot, ctx) -> None:
     if not musicbot.queue.current_song:
         await message_handler.send_info(ctx, CONST.MESSAGE_QUEUE_EMPTY)
         return
@@ -99,7 +99,7 @@ async def cm_leave(ctx) -> None:
 
 
 @command_handler.handle_errors
-async def cm_toggle(ctx) -> None:
+async def cm_pause(ctx) -> None:
     if not ctx.voice_client:
         await message_handler.send_info(ctx, CONST.MESSAGE_NOTHING_PLAYING)
         return
@@ -114,8 +114,8 @@ async def cm_toggle(ctx) -> None:
 
 
 @command_handler.handle_errors
-async def cm_djhelp(ctx) -> None:
-    embed_dict = CONST.get_djhelp_embed()
+async def cm_help(ctx) -> None:
+    embed_dict = CONST.get_help_embed()
     await message_handler.send_custom(ctx, embed_dict)
 
 
