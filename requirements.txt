@@ -1,4 +1,4 @@
-discord.py[voice]
+discord.py[voice]>=2.4
 yt-dlp
 pynacl
 python-dotenv

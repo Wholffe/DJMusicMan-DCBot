@@ -2,7 +2,7 @@ from copy import deepcopy
 from typing import Final
 
 # region Info
-VERSION: Final = "2.2.8"
+VERSION: Final = "3.0.0"
 NAME: Final = "DJ Music Man"
 FOOTER: Final = f"{NAME} {VERSION}"
 
@@ -17,47 +17,42 @@ EMBED_DJHELP = {
         {"name": "🎶 **Music playback**", "value": "", "inline": False},
         {
             "name": "/play <search>",
-            "value": "Plays a song from YouTube",
+            "value": "Plays a song or playlist from YouTube.",
             "inline": True,
         },
         {
             "name": "/playfirst <search>",
-            "value": "Plays a song from YouTube and adds it to the top of the queue",
+            "value": (
+                "Plays a song or playlist from YouTube before the rest of the queue."
+            ),
             "inline": True,
         },
-        {
-            "name": "/toggle | /pause",
-            "value": "Toggle pause|continue playback",
-            "inline": True,
-        },
+        {"name": "/pause", "value": "Pauses or resumes playback.", "inline": True},
         {"name": "/skip", "value": "Skips the current song.", "inline": True},
         {"name": "🛠️ **Queue-Management**", "value": "", "inline": False},
-        {
-            "name": "/showq | /queue",
-            "value": "Shows the current queue.",
-            "inline": True,
-        },
+        {"name": "/queue", "value": "Shows the current queue.", "inline": True},
         {"name": "/shuffle", "value": "Shuffles the queue.", "inline": True},
         {"name": "/clear", "value": "Clears the queue.", "inline": True},
         {
             "name": "/loop",
-            "value": "Toggles looping of the current song",
+            "value": "Toggles looping of the current song.",
             "inline": True,
         },
         {
-            "name": "/rm <index>",
-            "value": "Removes a song from the queue",
+            "name": "/remove <position>",
+            "value": "Removes a song from the queue.",
             "inline": True,
         },
         {"name": "⚙️ **Other commands**", "value": "", "inline": False},
         {
             "name": "/leave",
-            "value": "Disconnects the bot from the voice channel",
+            "value": "Disconnects the bot from the voice channel.",
             "inline": True,
         },
-        {"name": "/clear_cache", "value": "Clears the song cache", "inline": True},
-        {"name": "/ping", "value": "Ping the bot", "inline": True},
-        {"name": "/reset | /restart", "value": "Resets the bot", "inline": True},
+        {"name": "/clear_cache", "value": "Clears the song cache.", "inline": True},
+        {"name": "/ping", "value": "Shows the bot's latency.", "inline": True},
+        {"name": "/restart", "value": "Restarts the bot.", "inline": True},
+        {"name": "/help", "value": "Shows all commands.", "inline": True},
     ],
     "footer": FOOTER,
 }
