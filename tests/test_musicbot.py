@@ -6,13 +6,13 @@ import discord
 from discord.ext import commands
 
 import music_bot.constants as CONST
-import music_bot.utils as utils
+import music_bot.services as services
 from music_bot.core import MusicBot
 from music_bot.idle_timer import IdleTimer
 from music_bot.message_handler import MessageHandler
 from music_bot.music_queue import MusicQueue
+from music_bot.playback import play_next
 from music_bot.progressbar import DownloadProgress
-from music_bot.utils import play_next
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -70,11 +70,11 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         args = mock_iter_song_infos.call_args.args
         self.assertEqual(args[0], search)
         self.assertIsInstance(args[1], DownloadProgress)
-        self.assertIs(args[1].message_handler, utils.message_handler)
+        self.assertIs(args[1].message_handler, services.message_handler)
 
-    @patch("music_bot.utils.play_next", new_callable=AsyncMock)
-    @patch("music_bot.utils.iter_song_infos")
-    @patch("music_bot.utils.join_voice_channel", new_callable=AsyncMock)
+    @patch("music_bot.playback.play_next", new_callable=AsyncMock)
+    @patch("music_bot.playback.iter_song_infos")
+    @patch("music_bot.playback.join_voice_channel", new_callable=AsyncMock)
     async def test_cm_play(
         self,
         mock_join_voice_channel,
@@ -101,9 +101,9 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(embed.title)
         self.assertEqual(embed.description, "Added to the queue: Test Song")
 
-    @patch("music_bot.utils.play_next", new_callable=AsyncMock)
-    @patch("music_bot.utils.iter_song_infos")
-    @patch("music_bot.utils.join_voice_channel", new_callable=AsyncMock)
+    @patch("music_bot.playback.play_next", new_callable=AsyncMock)
+    @patch("music_bot.playback.iter_song_infos")
+    @patch("music_bot.playback.join_voice_channel", new_callable=AsyncMock)
     async def test_cm_play_invalid_url(
         self,
         mock_join_voice_channel,
@@ -128,9 +128,9 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(embed.title)
         self.assertEqual(embed.description, CONST.MESSAGE_FAILED_VIDEO_INFO)
 
-    @patch("music_bot.utils.play_next", new_callable=AsyncMock)
-    @patch("music_bot.utils.iter_song_infos")
-    @patch("music_bot.utils.join_voice_channel", new_callable=AsyncMock)
+    @patch("music_bot.playback.play_next", new_callable=AsyncMock)
+    @patch("music_bot.playback.iter_song_infos")
+    @patch("music_bot.playback.join_voice_channel", new_callable=AsyncMock)
     async def test_cm_playfirst(
         self,
         mock_join_voice_channel,
@@ -218,8 +218,8 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(embed.title)
         self.assertEqual(embed.description, CONST.MESSAGE_QUEUE_EMPTY)
 
-    @patch("music_bot.utils.is_playing", new_callable=AsyncMock)
-    @patch("music_bot.utils.play_next", new_callable=AsyncMock)
+    @patch("music_bot.commands.is_playing", new_callable=AsyncMock)
+    @patch("music_bot.playback.play_next", new_callable=AsyncMock)
     async def test_showq_command_with_items(self, mock_play_next, mock_is_playing):
         self.musicbot.queue.add_song("url1", "title1")
         self.musicbot.queue.add_song("url2", "title2")
@@ -380,8 +380,8 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(self.musicbot.queue.queue), 1)
         self.assertEqual(self.musicbot.queue.queue[0][1], "title1")
 
-    @patch("music_bot.utils.is_bot_only_member_in_vc", new_callable=AsyncMock)
-    @patch("music_bot.utils.play_song", new_callable=AsyncMock)
+    @patch("music_bot.playback.is_bot_only_member_in_vc", new_callable=AsyncMock)
+    @patch("music_bot.playback.play_song", new_callable=AsyncMock)
     async def test_play_next_with_other_member_in_vc(
         self, mock_play_song, mock_is_bot_only_member_in_vc
     ):
@@ -394,7 +394,7 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         self.ctx.voice_client.disconnect.assert_not_called()
         mock_play_song.assert_called_once()
 
-    @patch("music_bot.utils.is_bot_only_member_in_vc", new_callable=AsyncMock)
+    @patch("music_bot.playback.is_bot_only_member_in_vc", new_callable=AsyncMock)
     async def test_play_next_with_no_other_member_in_vc(
         self, mock_is_bot_only_member_in_vc
     ):
@@ -421,7 +421,7 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(embed.description, CONST.MESSAGE_RESTARTING_BOT)
         mock_close.assert_called_once()
 
-    @patch("music_bot.utils.join_voice_channel", new_callable=AsyncMock)
+    @patch("music_bot.playback.join_voice_channel", new_callable=AsyncMock)
     async def test_play_fails_if_user_not_in_voice_channel(
         self, mock_join_voice_channel
     ):
@@ -462,7 +462,7 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         embed = self.ctx.send.call_args[1]["embed"]
         self.assertEqual(embed.description, CONST.MESSAGE_SKIPPED_SONG)
 
-    @patch("music_bot.utils.idle_timer.clear_timer_task")
+    @patch("music_bot.services.idle_timer.clear_timer_task")
     async def test_command_error_handling(self, mock_clear_timer_task):
         error_message = "A critical failure occurred"
         mock_clear_timer_task.side_effect = Exception(error_message)
@@ -492,7 +492,7 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(embed.description, expected_description)
         self.assertEqual(embed.color, discord.Color.red())
 
-    @patch("music_bot.utils.join_voice_channel", new_callable=AsyncMock)
+    @patch("music_bot.playback.join_voice_channel", new_callable=AsyncMock)
     async def test_play_command_error_is_sent_to_ctx(self, mock_join_voice_channel):
         error_message = "A critical failure occurred"
         mock_join_voice_channel.side_effect = Exception(error_message)
@@ -506,7 +506,7 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(embed.description, expected_description)
         self.assertEqual(embed.color, discord.Color.red())
 
-    @patch("music_bot.utils.cache_manager.clear_cache")
+    @patch("music_bot.services.cache_manager.clear_cache")
     async def test_clear_cache_succeeds_when_disconnected(self, mock_clear_cache):
         self.ctx.voice_client = None
         mock_clear_cache.return_value = (10, 50.5)
@@ -523,7 +523,7 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(embed.color, discord.Color.green())
 
-    @patch("music_bot.utils.cache_manager.clear_cache")
+    @patch("music_bot.services.cache_manager.clear_cache")
     async def test_clear_cache_fails_while_connected(self, mock_clear_cache):
         command = self._get_command("clear_cache")
         await command(self.ctx)

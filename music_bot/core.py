@@ -1,11 +1,6 @@
 from discord.ext import commands
 
-from .config import STARTUP_CHANNEL_ID
-from .constants import VERSION
-from .logger import logger
-from .message_handler import MessageHandler
-from .music_queue import MusicQueue
-from .utils import (
+from .commands import (
     cm_clear,
     cm_clear_cache,
     cm_djhelp,
@@ -21,6 +16,11 @@ from .utils import (
     cm_skip,
     cm_toggle,
 )
+from .config import STARTUP_CHANNEL_ID
+from .constants import VERSION
+from .logger import logger
+from .message_handler import MessageHandler
+from .music_queue import MusicQueue
 
 
 class MusicBot(commands.Cog):
