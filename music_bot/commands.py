@@ -90,6 +90,7 @@ async def cm_clear(musicbot, ctx) -> None:
 
 @command_handler.handle_errors
 async def cm_leave(ctx) -> None:
+    await ctx.defer()
     if not ctx.voice_client:
         await message_handler.send_info(ctx, CONST.MESSAGE_BOT_NOT_IN_VOICE)
         return
@@ -162,6 +163,7 @@ async def cm_restart(musicbot, ctx) -> None:
 
 @command_handler.handle_errors
 async def cm_clear_cache(ctx) -> None:
+    await ctx.defer()
     if ctx.voice_client:
         await message_handler.send_error(
             ctx, CONST.MESSAGE_CANNOT_CLEAR_CACHE_WHILE_CONNECTED

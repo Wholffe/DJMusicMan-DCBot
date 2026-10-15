@@ -1,5 +1,6 @@
 import logging
 import unittest
+from collections.abc import Awaitable, Callable
 from unittest.mock import ANY, AsyncMock, MagicMock, PropertyMock, patch
 
 import discord
@@ -15,7 +16,6 @@ from music_bot.playback import play_next
 from music_bot.progressbar import DownloadProgress
 
 intents = discord.Intents.default()
-intents.message_content = True
 intents.voice_states = True
 
 
@@ -37,7 +37,9 @@ async def _pop_next_song(ctx, queue: MusicQueue, client) -> None:
 class TestMusicBot(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         logging.getLogger("MusicBot").setLevel(logging.CRITICAL + 1)
-        self.bot = commands.Bot(command_prefix="/", intents=intents)
+        self.bot = commands.Bot(
+            command_prefix=commands.when_mentioned, help_command=None, intents=intents
+        )
         self.musicbot = MusicBot(self.bot)
         self.message_handler = MessageHandler()
         self.idle_timer = IdleTimer(self.message_handler)
@@ -60,10 +62,20 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         self.ctx.bot = self.bot
         self.musicbot.queue = MusicQueue()
 
-    def _get_command(self, name: str) -> commands.Command:
-        command = self.bot.get_command(name)
+    def _get_command(self, name: str) -> Callable[..., Awaitable[None]]:
+        """Returns a function that runs the slash command with the test context."""
+        command = self.bot.tree.get_command(name)
         assert command is not None, f"Command '{name}' is not registered"
-        return command
+
+        async def invoke(ctx, *args, **kwargs) -> None:
+            with patch.object(
+                commands.Context, "from_interaction", new=AsyncMock(return_value=ctx)
+            ):
+                await command.callback(
+                    self.musicbot, MagicMock(spec=discord.Interaction), *args, **kwargs
+                )
+
+        return invoke
 
     def _assert_called_with_progress(self, mock_iter_song_infos, search: str) -> None:
         mock_iter_song_infos.assert_called_once()
@@ -71,6 +83,29 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(args[0], search)
         self.assertIsInstance(args[1], DownloadProgress)
         self.assertIs(args[1].message_handler, services.message_handler)
+
+    async def test_slash_commands_are_registered(self):
+        expected = {
+            "play",
+            "playfirst",
+            "skip",
+            "pause",
+            "queue",
+            "shuffle",
+            "clear",
+            "loop",
+            "remove",
+            "leave",
+            "clear_cache",
+            "ping",
+            "restart",
+            "help",
+        }
+
+        names = {command.name for command in self.bot.tree.get_commands()}
+
+        self.assertEqual(names, expected)
+        self.assertEqual(len(self.bot.commands), 0)
 
     @patch("music_bot.playback.play_next", new_callable=AsyncMock)
     @patch("music_bot.playback.iter_song_infos")
@@ -187,8 +222,8 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
             self.assertFalse(embed.title)
             self.assertEqual(embed.description, "ping: 123ms")
 
-    async def test_djhelp_command(self):
-        command = self._get_command("djhelp")
+    async def test_help_command(self):
+        command = self._get_command("help")
         await command(self.ctx)
 
         self.ctx.send.assert_called_once()
@@ -209,8 +244,8 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(embed.title)
         self.assertEqual(embed.description, CONST.MESSAGE_QUEUE_CLEARED)
 
-    async def test_showq_command_empty(self):
-        command = self._get_command("showq")
+    async def test_queue_command_empty(self):
+        command = self._get_command("queue")
         await command(self.ctx)
 
         self.ctx.send.assert_called_once()
@@ -218,12 +253,12 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(embed.title)
         self.assertEqual(embed.description, CONST.MESSAGE_QUEUE_EMPTY)
 
-    async def test_showq_command_with_items(self):
+    async def test_queue_command_with_items(self):
         self.musicbot.queue.add_song("url1", "title1")
         self.musicbot.queue.add_song("url2", "title2")
         self.musicbot.queue.current_song = self.musicbot.queue.get_next_song()
 
-        command = self._get_command("showq")
+        command = self._get_command("queue")
         await command(self.ctx)
 
         self.ctx.send.assert_called_once()
@@ -234,11 +269,11 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(any(field.name == "Now Playing" for field in embed.fields))
         self.assertTrue(any(field.name == "Loop Status" for field in embed.fields))
 
-    async def test_toggle_command_pause(self):
+    async def test_pause_command_pauses_playing_song(self):
         self.ctx.voice_client.is_playing.return_value = True
         self.ctx.voice_client.is_paused.return_value = False
 
-        command = self._get_command("toggle")
+        command = self._get_command("pause")
         await command(self.ctx)
 
         self.ctx.voice_client.pause.assert_called_once()
@@ -247,11 +282,11 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(embed.title)
         self.assertEqual(embed.description, CONST.MESSAGE_PAUSED_SONG)
 
-    async def test_toggle_command_continue(self):
+    async def test_pause_command_resumes_paused_song(self):
         self.ctx.voice_client.is_playing.return_value = False
         self.ctx.voice_client.is_paused.return_value = True
 
-        command = self._get_command("toggle")
+        command = self._get_command("pause")
         await command(self.ctx)
 
         self.ctx.voice_client.resume.assert_called_once()
@@ -260,11 +295,11 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(embed.title)
         self.assertEqual(embed.description, CONST.MESSAGE_RESUMED_SONG)
 
-    async def test_toggle_while_idle_sends_nothing_playing(self):
+    async def test_pause_while_idle_sends_nothing_playing(self):
         self.ctx.voice_client.is_playing.return_value = False
         self.ctx.voice_client.is_paused.return_value = False
 
-        command = self._get_command("toggle")
+        command = self._get_command("pause")
         await command(self.ctx)
 
         self.ctx.voice_client.resume.assert_not_called()
@@ -273,10 +308,10 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         embed = self.ctx.send.call_args[1]["embed"]
         self.assertEqual(embed.description, CONST.MESSAGE_NOTHING_PLAYING)
 
-    async def test_toggle_without_voice_client_sends_nothing_playing(self):
+    async def test_pause_without_voice_client_sends_nothing_playing(self):
         self.ctx.voice_client = None
 
-        command = self._get_command("toggle")
+        command = self._get_command("pause")
         await command(self.ctx)
 
         self.ctx.send.assert_called_once()
@@ -386,8 +421,8 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         self.musicbot.queue.add_song("url1", "title1")
         self.musicbot.queue.add_song("url2", "title2")
 
-        command = self._get_command("rm")
-        await command(self.ctx, 1)
+        command = self._get_command("remove")
+        await command(self.ctx, position=1)
 
         self.ctx.send.assert_called_once()
         embed = self.ctx.send.call_args[1]["embed"]
@@ -399,8 +434,8 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
     async def test_remove_from_queue_invalid(self):
         self.musicbot.queue.add_song("url1", "title1")
 
-        command = self._get_command("rm")
-        await command(self.ctx, 2)
+        command = self._get_command("remove")
+        await command(self.ctx, position=2)
 
         self.ctx.send.assert_called_once()
         embed = self.ctx.send.call_args[1]["embed"]

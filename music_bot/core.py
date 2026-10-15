@@ -1,3 +1,5 @@
+import discord
+from discord import app_commands
 from discord.ext import commands
 
 from .commands import (
@@ -28,7 +30,6 @@ class MusicBot(commands.Cog):
         self.client = bot
         self.queue = MusicQueue()
         self.message_handler = message_handler
-        self.client.remove_command("help")
 
     @commands.Cog.listener()
     async def on_ready(self) -> None:
@@ -43,58 +44,89 @@ class MusicBot(commands.Cog):
             return
         await self.message_handler.send_info(channel, info_message)
 
-    @commands.command()
-    async def play(self, ctx, *, search: str) -> None:
+    @app_commands.command()
+    @app_commands.describe(search="YouTube link, playlist or search terms")
+    async def play(self, interaction: discord.Interaction, search: str) -> None:
+        """Plays a song or playlist from YouTube."""
+        ctx = await commands.Context.from_interaction(interaction)
         await cm_play(self, ctx, search)
 
-    @commands.command()
-    async def skip(self, ctx) -> None:
+    @app_commands.command()
+    async def skip(self, interaction: discord.Interaction) -> None:
+        """Skips the current song."""
+        ctx = await commands.Context.from_interaction(interaction)
         await cm_skip(self, ctx)
 
-    @commands.command()
-    async def ping(self, ctx) -> None:
+    @app_commands.command()
+    async def ping(self, interaction: discord.Interaction) -> None:
+        """Shows the bot's latency."""
+        ctx = await commands.Context.from_interaction(interaction)
         await cm_ping(ctx)
 
-    @commands.command(aliases=["djhelp"])
-    async def help(self, ctx) -> None:
+    @app_commands.command()
+    async def help(self, interaction: discord.Interaction) -> None:
+        """Shows all commands."""
+        ctx = await commands.Context.from_interaction(interaction)
         await cm_djhelp(ctx)
 
-    @commands.command()
-    async def clear(self, ctx) -> None:
+    @app_commands.command()
+    async def clear(self, interaction: discord.Interaction) -> None:
+        """Clears the queue."""
+        ctx = await commands.Context.from_interaction(interaction)
         await cm_clear(self, ctx)
 
-    @commands.command(aliases=["queue"])
-    async def showq(self, ctx) -> None:
+    @app_commands.command(name="queue")
+    async def show_queue(self, interaction: discord.Interaction) -> None:
+        """Shows the current queue."""
+        ctx = await commands.Context.from_interaction(interaction)
         await cm_showq(self, ctx)
 
-    @commands.command(aliases=["pause"])
-    async def toggle(self, ctx) -> None:
+    @app_commands.command()
+    async def pause(self, interaction: discord.Interaction) -> None:
+        """Pauses or resumes playback."""
+        ctx = await commands.Context.from_interaction(interaction)
         await cm_toggle(ctx)
 
-    @commands.command()
-    async def leave(self, ctx) -> None:
+    @app_commands.command()
+    async def leave(self, interaction: discord.Interaction) -> None:
+        """Disconnects the bot from the voice channel."""
+        ctx = await commands.Context.from_interaction(interaction)
         await cm_leave(ctx)
 
-    @commands.command()
-    async def shuffle(self, ctx) -> None:
+    @app_commands.command()
+    async def shuffle(self, interaction: discord.Interaction) -> None:
+        """Shuffles the queue."""
+        ctx = await commands.Context.from_interaction(interaction)
         await cm_shuffle(self, ctx)
 
-    @commands.command()
-    async def loop(self, ctx) -> None:
+    @app_commands.command()
+    async def loop(self, interaction: discord.Interaction) -> None:
+        """Toggles looping of the current song."""
+        ctx = await commands.Context.from_interaction(interaction)
         await cm_loop(self, ctx)
 
-    @commands.command(name="rm")
-    async def remove_element(self, ctx, index: int) -> None:
-        await cm_remove(self, ctx, index)
+    @app_commands.command()
+    @app_commands.describe(position="Position in the queue (see /queue)")
+    async def remove(self, interaction: discord.Interaction, position: int) -> None:
+        """Removes a song from the queue."""
+        ctx = await commands.Context.from_interaction(interaction)
+        await cm_remove(self, ctx, position)
 
-    @commands.command()
-    async def playfirst(self, ctx, *, search: str) -> None:
+    @app_commands.command()
+    @app_commands.describe(search="YouTube link, playlist or search terms")
+    async def playfirst(self, interaction: discord.Interaction, search: str) -> None:
+        """Plays a song or playlist from YouTube before the rest of the queue."""
+        ctx = await commands.Context.from_interaction(interaction)
         await cm_playfirst(self, ctx, search)
 
-    @commands.command(aliases=["reset"])
-    async def restart(self, ctx) -> None:
+    @app_commands.command()
+    async def restart(self, interaction: discord.Interaction) -> None:
+        """Restarts the bot."""
+        ctx = await commands.Context.from_interaction(interaction)
         await cm_restart(self, ctx)
 
-    @commands.command()
-    async def clear_cache(self, ctx) -> None:
+    @app_commands.command()
+    async def clear_cache(self, interaction: discord.Interaction) -> None:
+        """Clears the song cache."""
+        ctx = await commands.Context.from_interaction(interaction)
         await cm_clear_cache(ctx)
