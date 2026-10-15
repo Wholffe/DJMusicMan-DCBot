@@ -236,6 +236,7 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
 
     async def test_toggle_command_pause(self):
         self.ctx.voice_client.is_playing.return_value = True
+        self.ctx.voice_client.is_paused.return_value = False
 
         command = self._get_command("toggle")
         await command(self.ctx)
@@ -248,6 +249,7 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
 
     async def test_toggle_command_continue(self):
         self.ctx.voice_client.is_playing.return_value = False
+        self.ctx.voice_client.is_paused.return_value = True
 
         command = self._get_command("toggle")
         await command(self.ctx)
@@ -257,6 +259,17 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         embed = self.ctx.send.call_args[1]["embed"]
         self.assertFalse(embed.title)
         self.assertEqual(embed.description, CONST.MESSAGE_RESUMED_SONG)
+
+    async def test_toggle_while_idle_does_nothing(self):
+        self.ctx.voice_client.is_playing.return_value = False
+        self.ctx.voice_client.is_paused.return_value = False
+
+        command = self._get_command("toggle")
+        await command(self.ctx)
+
+        self.ctx.voice_client.resume.assert_not_called()
+        self.ctx.voice_client.pause.assert_not_called()
+        self.ctx.send.assert_not_called()
 
     async def test_toggle_without_voice_client_does_nothing(self):
         self.ctx.voice_client = None

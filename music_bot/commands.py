@@ -99,7 +99,7 @@ async def cm_toggle(ctx) -> None:
     if await is_playing(ctx):
         ctx.voice_client.pause()
         await message_handler.send_success(ctx, CONST.MESSAGE_PAUSED_SONG)
-    else:
+    elif ctx.voice_client.is_paused():
         ctx.voice_client.resume()
         await message_handler.send_success(ctx, CONST.MESSAGE_RESUMED_SONG)
 

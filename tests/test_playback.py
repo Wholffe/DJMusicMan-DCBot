@@ -1,4 +1,5 @@
 import asyncio
+import concurrent.futures
 import contextlib
 import logging
 import unittest
@@ -14,6 +15,7 @@ from music_bot.playback import (
     _add_songs_to_queue,
     is_bot_only_member_in_vc,
     iter_song_infos,
+    join_voice_channel,
     play_next,
     play_song,
     start_playback_if_idle,
@@ -493,6 +495,63 @@ class TestPlayback(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(OSError):
             [song async for song in iter_song_infos("search")]
 
+    def _musicbot_with_queued_song(self) -> MagicMock:
+        musicbot = MagicMock()
+        musicbot.queue = self.queue
+        self.queue.add_song("url1", "title1")
+        self.queue.set_loop(True)
+        return musicbot
+
+    @patch("music_bot.playback.asyncio.sleep", new_callable=AsyncMock)
+    async def test_join_voice_channel_user_not_in_voice_sends_error(self, mock_sleep):
+        musicbot = self._musicbot_with_queued_song()
+        self.ctx.author.voice = None
+
+        result = await join_voice_channel(musicbot, self.ctx)
+
+        self.assertFalse(result)
+        embed = self._sent_embed()
+        self.assertEqual(embed.description, CONST.MESSAGE_NOT_CONNECTED)
+        self.assertEqual(embed.color, discord.Color.red())
+        self.assertEqual(self.queue.queue, [("url1", "title1")])
+
+    @patch("music_bot.playback.asyncio.sleep", new_callable=AsyncMock)
+    async def test_join_voice_channel_not_connected_connects_and_resets_queue(
+        self, mock_sleep
+    ):
+        musicbot = self._musicbot_with_queued_song()
+        voice_client = self.ctx.voice_client
+        self.ctx.voice_client = None
+        voice_channel = self.ctx.author.voice.channel
+        voice_channel.connect = AsyncMock()
+
+        async def connect():
+            self.ctx.voice_client = voice_client
+
+        voice_channel.connect.side_effect = connect
+
+        result = await join_voice_channel(musicbot, self.ctx)
+
+        self.assertTrue(result)
+        voice_channel.connect.assert_awaited_once()
+        self.assertTrue(self.queue.is_empty())
+        self.assertFalse(self.queue.loop)
+        self.ctx.send.assert_not_called()
+
+    @patch("music_bot.playback.asyncio.sleep", new_callable=AsyncMock)
+    async def test_join_voice_channel_already_connected_keeps_queue(self, mock_sleep):
+        musicbot = self._musicbot_with_queued_song()
+        voice_channel = self.ctx.author.voice.channel
+        voice_channel.connect = AsyncMock()
+
+        result = await join_voice_channel(musicbot, self.ctx)
+
+        self.assertTrue(result)
+        voice_channel.connect.assert_not_called()
+        self.assertEqual(self.queue.queue, [("url1", "title1")])
+        self.assertTrue(self.queue.loop)
+        self.ctx.send.assert_not_called()
+
     @patch("music_bot.playback.play_next", new_callable=AsyncMock)
     async def test_start_playback_if_idle_while_playing_does_nothing(
         self, mock_play_next
@@ -560,6 +619,45 @@ class TestPlayback(unittest.IsolatedAsyncioTestCase):
             mock_start_playback_if_idle.return_value, self.client.loop
         )
         self.client.loop.create_task.assert_not_called()
+
+    async def _call_after_with_future(self, future: concurrent.futures.Future) -> None:
+        """Plays a song and runs its after callback, which gets the given future."""
+        await play_song(self.ctx, self.queue, self.client, "url1", "title1")
+        after = self.ctx.voice_client.play.call_args.kwargs["after"]
+
+        def run_coroutine_threadsafe(coro, loop):
+            coro.close()  # the coroutine never runs in these tests
+            return future
+
+        with patch(
+            "music_bot.playback.asyncio.run_coroutine_threadsafe",
+            side_effect=run_coroutine_threadsafe,
+        ):
+            after(None)
+
+    @patch("music_bot.playback.logger", create=True)
+    @patch("discord.FFmpegOpusAudio.from_probe", new_callable=AsyncMock)
+    async def test_play_song_after_callback_logs_playback_error(
+        self, mock_from_probe, mock_logger
+    ):
+        future = concurrent.futures.Future()
+        await self._call_after_with_future(future)
+
+        future.set_exception(RuntimeError("boom"))
+
+        mock_logger.error.assert_called_once()
+
+    @patch("music_bot.playback.logger", create=True)
+    @patch("discord.FFmpegOpusAudio.from_probe", new_callable=AsyncMock)
+    async def test_play_song_after_callback_success_logs_nothing(
+        self, mock_from_probe, mock_logger
+    ):
+        future = concurrent.futures.Future()
+        await self._call_after_with_future(future)
+
+        future.set_result(None)
+
+        mock_logger.error.assert_not_called()
 
     @patch("music_bot.services.idle_timer.handle_idle", new_callable=AsyncMock)
     async def test_play_next_with_empty_queue_starts_idle_handling(

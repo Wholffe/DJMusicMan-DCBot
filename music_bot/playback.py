@@ -1,6 +1,7 @@
 import asyncio
 import contextlib
 from collections.abc import AsyncIterator
+from concurrent.futures import Future
 
 import discord
 
@@ -8,6 +9,7 @@ from music_bot import constants as CONST
 
 from .cache_manager import ProgressHook
 from .config import FFMPEG_OPTIONS
+from .logger import logger
 from .music_queue import MusicQueue, Song
 from .progressbar import DownloadProgress
 from .services import (
@@ -135,15 +137,24 @@ async def is_bot_only_member_in_vc(ctx) -> bool:
     return bool(ctx.voice_client and len(ctx.voice_client.channel.members) == 1)
 
 
+def _log_playback_error(future: Future[None]) -> None:
+    """Logs the error if starting the next song failed."""
+    error = None if future.cancelled() else future.exception()
+    if error:
+        logger.error("Failed to start the next song", exc_info=error)
+
+
 async def play_song(ctx, queue: MusicQueue, client, url: str, title: str) -> None:
     source = await discord.FFmpegOpusAudio.from_probe(url, **FFMPEG_OPTIONS)
+
     # discord.py calls after from its player thread, not from the event loop
-    ctx.voice_client.play(
-        source,
-        after=lambda _: asyncio.run_coroutine_threadsafe(
+    def after(_) -> None:
+        future = asyncio.run_coroutine_threadsafe(
             start_playback_if_idle(ctx, queue, client), client.loop
-        ),
-    )
+        )
+        future.add_done_callback(_log_playback_error)
+
+    ctx.voice_client.play(source, after=after)
 
 
 async def start_playback_if_idle(ctx, queue: MusicQueue, client) -> None:
