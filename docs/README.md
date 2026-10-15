@@ -113,6 +113,16 @@ The bot uses Discord slash commands. Type `/` in a text channel of your server t
 | `/restart` | Restarts the bot. |
 | `/help` | Shows all commands. |
 
+### Restrict the Bot to Specific Channels
+
+By default, the commands work in every text channel the bot can see. Discord lets you limit them without any configuration in the bot:
+
+1. Open **Server Settings** → **Integrations** and select the bot.
+2. Under **Channels**, remove **All Channels** and add the channel(s) the bot should be used in.
+3. Optionally, override single commands, e.g. allow `/restart` and `/clear_cache` only for an admin role.
+
+In all other channels, the commands are hidden from the command menu.
+
 ## Contribution
 
 Contributions are welcome! If you have ideas for improvements or new features, feel free to open an issue or submit a pull request.
