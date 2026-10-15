@@ -576,14 +576,19 @@ class TestUtilsHelpers(unittest.IsolatedAsyncioTestCase):
         await play_song(self.ctx, self.queue, self.client, "url1", "title1")
         after = self.ctx.voice_client.play.call_args.kwargs["after"]
 
-        after(None)
+        # discord.py calls after from its player thread, not from the event loop
+        with patch(
+            "music_bot.utils.asyncio.run_coroutine_threadsafe"
+        ) as mock_run_coroutine_threadsafe:
+            after(None)
 
         mock_start_playback_if_idle.assert_called_once_with(
             self.ctx, self.queue, self.client
         )
-        self.client.loop.create_task.assert_called_once_with(
-            mock_start_playback_if_idle.return_value
+        mock_run_coroutine_threadsafe.assert_called_once_with(
+            mock_start_playback_if_idle.return_value, self.client.loop
         )
+        self.client.loop.create_task.assert_not_called()
 
     async def test_showq_with_current_song_and_empty_queue(self):
         self.queue.add_song("url1", "title1")

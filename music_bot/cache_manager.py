@@ -1,5 +1,6 @@
 import json
 import os
+import threading
 from collections.abc import Callable, Generator, Iterator, Mapping
 from typing import TYPE_CHECKING, Any, cast
 
@@ -38,6 +39,9 @@ class CacheManager:
     def __init__(self) -> None:
         self.METADATA_CACHE_FILE_PATH = os.path.join(CACHE_DIR, "metadata_cache.json")
         self.metadata_cache: dict[str, dict[str, Any]] = {}
+        # Songs are fetched in executor threads, so cache changes and saving must
+        # not interleave
+        self.lock = threading.Lock()
         self._initialize_cache()
 
     def _initialize_cache(self) -> None:
@@ -86,7 +90,7 @@ class CacheManager:
         return deleted_files, total_size
 
     def _enforce_cache_limit(self) -> None:
-        """If the cache is over size, removes the oldest entries (FIFO)."""
+        """If the cache is over size, removes the least recently used entries."""
         while len(self.metadata_cache) > MAX_CACHE_FILES:
             oldest_key = next(iter(self.metadata_cache))
             self._delete_song_files(self.metadata_cache[oldest_key])
@@ -179,15 +183,22 @@ class CacheManager:
         # Only reached if the consumer did not stop early
         if not pruned_entries:
             return
-        self.metadata_cache[search] = {"entries": pruned_entries}
-        self._enforce_cache_limit()
+        with self.lock:
+            self.metadata_cache[search] = {"entries": pruned_entries}
+            self._enforce_cache_limit()
 
     def iter_songs(
         self, search: str, progress_hook: ProgressHook | None = None
     ) -> Generator[dict[str, str], None, None]:
         """Yields song data one by one, downloading each song as needed."""
-        if search in self.metadata_cache:
-            info = self.metadata_cache[search]
+        with self.lock:
+            info = self.metadata_cache.pop(search, None)
+            if info is not None:
+                # Moves the entry to the end, so the cache limit keeps recent songs
+                self.metadata_cache[search] = info
+                self._save_metadata()
+
+        if info is not None:
             yield from self._iter_cached_entries(
                 info.get("entries", [info]), progress_hook
             )
@@ -200,11 +211,12 @@ class CacheManager:
         deleted_files = 0
         total_size = 0
 
-        for search in list(self.metadata_cache.keys()):
-            files, size = self._delete_song_files(self.metadata_cache[search])
-            deleted_files += files
-            total_size += size
-            del self.metadata_cache[search]
+        with self.lock:
+            for search in list(self.metadata_cache.keys()):
+                files, size = self._delete_song_files(self.metadata_cache[search])
+                deleted_files += files
+                total_size += size
+                del self.metadata_cache[search]
 
-        self._save_metadata()
+            self._save_metadata()
         return deleted_files, round(total_size / (1024 * 1024), 2)

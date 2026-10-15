@@ -3,7 +3,6 @@ import os
 
 import discord
 from discord.ext import commands
-from dotenv import load_dotenv
 
 from music_bot.core import MusicBot
 
@@ -15,7 +14,6 @@ client = commands.Bot(command_prefix="/", intents=intents)
 
 
 async def main():
-    load_dotenv()
     await client.add_cog(MusicBot(client))
     DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
     if DISCORD_TOKEN is None:

@@ -16,7 +16,7 @@ docker build --no-cache -t "$DOCKER_IMAGE_NAME" .
 docker run -d \
   --name "$CONTAINER_NAME" \
   --env-file .env \
-  -v "$DATA_PATH":/app/data \
+  -v "$DATA_PATH":/data \
   --restart unless-stopped \
   "$DOCKER_IMAGE_NAME"
 

@@ -95,7 +95,7 @@ MESSAGE_PONG: Final = "pong"
 MESSAGE_QUEUE_CLEARED: Final = "Queue cleared."
 MESSAGE_QUEUE_EMPTY_USE_PLAY: Final = "Queue is empty. Use /play to add songs."
 MESSAGE_QUEUE_EMPTY: Final = "The queue is empty."
-MESSAGE_QUEUE_SHUFFLED: Final = "Queue shuffeled."
+MESSAGE_QUEUE_SHUFFLED: Final = "Queue shuffled."
 MESSAGE_RESUMED_SONG: Final = "Resumed the song."
 MESSAGE_SKIPPED_SONG: Final = "Skipped the current song."
 

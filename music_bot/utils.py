@@ -66,10 +66,11 @@ async def is_playing(ctx) -> bool:
 
 async def play_song(ctx, queue: MusicQueue, client, url: str, title: str) -> None:
     source = await discord.FFmpegOpusAudio.from_probe(url, **FFMPEG_OPTIONS)
+    # discord.py calls after from its player thread, not from the event loop
     ctx.voice_client.play(
         source,
-        after=lambda _: client.loop.create_task(
-            start_playback_if_idle(ctx, queue, client)
+        after=lambda _: asyncio.run_coroutine_threadsafe(
+            start_playback_if_idle(ctx, queue, client), client.loop
         ),
     )
 
@@ -206,7 +207,8 @@ async def cm_playfirst(musicbot, ctx, search: str) -> None:
 
 @command_handler.handle_errors
 async def cm_skip(musicbot, ctx) -> None:
-    if not await is_playing(ctx):
+    voice_client = ctx.voice_client
+    if not voice_client or not (voice_client.is_playing() or voice_client.is_paused()):
         return
     musicbot.queue.skip_current_song(ctx)
     await message_handler.send_success(ctx, CONST.MESSAGE_SKIPPED_SONG)
@@ -264,6 +266,8 @@ async def cm_leave(ctx) -> None:
 
 @command_handler.handle_errors
 async def cm_toggle(ctx) -> None:
+    if not ctx.voice_client:
+        return
     if await is_playing(ctx):
         ctx.voice_client.pause()
         await message_handler.send_success(ctx, CONST.MESSAGE_PAUSED_SONG)

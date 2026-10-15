@@ -260,6 +260,14 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(embed.title)
         self.assertEqual(embed.description, CONST.MESSAGE_RESUMED_SONG)
 
+    async def test_toggle_without_voice_client_does_nothing(self):
+        self.ctx.voice_client = None
+
+        command = self._get_command("toggle")
+        await command(self.ctx)
+
+        self.ctx.send.assert_not_called()
+
     async def test_leave_command(self):
         self.ctx.voice_client = MagicMock()
         self.ctx.voice_client.disconnect = AsyncMock()
@@ -433,6 +441,26 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
 
         self.ctx.voice_client.stop.assert_not_called()
         self.ctx.send.assert_not_called()
+
+    async def test_skip_without_voice_client_does_nothing(self):
+        self.ctx.voice_client = None
+
+        command = self._get_command("skip")
+        await command(self.ctx)
+
+        self.ctx.send.assert_not_called()
+
+    async def test_skip_when_paused_skips_song(self):
+        self.ctx.voice_client.is_playing.return_value = False
+        self.ctx.voice_client.is_paused.return_value = True
+
+        command = self._get_command("skip")
+        await command(self.ctx)
+
+        self.ctx.voice_client.stop.assert_called_once()
+        self.ctx.send.assert_called_once()
+        embed = self.ctx.send.call_args[1]["embed"]
+        self.assertEqual(embed.description, CONST.MESSAGE_SKIPPED_SONG)
 
     @patch("music_bot.utils.idle_timer.clear_timer_task")
     async def test_command_error_handling(self, mock_clear_timer_task):

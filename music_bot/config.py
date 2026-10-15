@@ -1,5 +1,10 @@
 import os
 
+from dotenv import load_dotenv
+
+# Loaded here, because the settings below are read when the package is imported
+load_dotenv()
+
 
 def get_env_int(varname: str, default: int) -> int:
     val = os.environ.get(varname, None)
@@ -9,7 +14,7 @@ def get_env_int(varname: str, default: int) -> int:
 
 
 STARTUP_CHANNEL_ID = get_env_int("STARTUP_CHANNEL_ID", 0)
-DATA_DIR = "./data"
+DATA_DIR = os.environ.get("DATA_DIR") or "./data"
 CACHE_DIR = os.path.join(DATA_DIR, "cache")
 COOKIES_FILE_PATH = os.path.join(DATA_DIR, "cookies.txt")
 PREFERED_AUDIO_FORMAT = "webm"

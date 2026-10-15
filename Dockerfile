@@ -24,5 +24,6 @@ VOLUME ["/data"]
 ENV MAX_CACHE_FILES=100
 ENV IDLE_TIMER=180
 ENV STARTUP_CHANNEL_ID=0
+ENV DATA_DIR=/data
 
 CMD ["python3", "/app/main.py"]

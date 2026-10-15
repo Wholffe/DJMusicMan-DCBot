@@ -454,6 +454,23 @@ class TestCacheManager(unittest.TestCase):
         self.assertTrue(os.path.exists(new_path))
         self.assertEqual(self._read_metadata(), {"new search": self._entry("new")})
 
+    def test_iter_songs_cache_hit_keeps_entry_over_least_recently_used(self):
+        self._write_metadata(
+            {"a search": self._entry("a"), "b search": self._entry("b")}
+        )
+        manager = CacheManager()
+        path_a = self._write_song_file("a")
+        path_b = self._write_song_file("b")
+        list(manager.iter_songs("a search"))
+        self.ydl.extract_info.return_value = self._entry("c")
+
+        with patch("music_bot.cache_manager.MAX_CACHE_FILES", 2):
+            list(manager.iter_songs("c search"))
+
+        self.assertEqual(list(manager.metadata_cache), ["a search", "c search"])
+        self.assertTrue(os.path.exists(path_a))
+        self.assertFalse(os.path.exists(path_b))
+
     def test_enforce_cache_limit_removes_all_playlist_files(self):
         manager = CacheManager()
         paths = [self._write_song_file("a"), self._write_song_file("b")]
