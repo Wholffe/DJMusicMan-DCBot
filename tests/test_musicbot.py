@@ -225,7 +225,7 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
 
     async def test_help_lists_every_command_except_help(self):
         help_text = "\n".join(field["value"] for field in CONST.EMBED_HELP["fields"])
-        listed = set(re.findall(r"`/(\w+)", help_text))
+        listed = set(re.findall(r"^/(\w+)", help_text, re.MULTILINE))
         registered = {command.name for command in self.bot.tree.get_commands()}
 
         self.assertEqual(listed, registered - {"help"})
@@ -239,7 +239,7 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(embed.title, CONST.NAME)
         self.assertEqual(
             [field.name for field in embed.fields],
-            ["Playback", "Queue", "Other", "Good to know"],
+            ["Playback", "Queue", "Other"],
         )
 
     async def test_clear_command(self):

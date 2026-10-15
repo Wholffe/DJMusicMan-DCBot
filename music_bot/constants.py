@@ -10,6 +10,15 @@ FOOTER: Final = f"{NAME} {VERSION}"
 PROGRESS_UPDATE_INTERVAL: Final = 2.0  # seconds between progress message edits
 
 # region Embeds
+HELP_COMMAND_WIDTH: Final = 21  # longest command plus two spaces
+
+
+def _command_list(commands: list[tuple[str, str]]) -> str:
+    """Formats commands as a code block, so the descriptions line up."""
+    lines = [f"{name.ljust(HELP_COMMAND_WIDTH)}{text}" for name, text in commands]
+    return "```\n" + "\n".join(lines) + "\n```"
+
+
 EMBED_HELP = {
     "title": NAME,
     "description": (
@@ -19,43 +28,38 @@ EMBED_HELP = {
     "fields": [
         {
             "name": "Playback",
-            "value": (
-                "`/play <search>` — Plays a song or playlist from YouTube\n"
-                "`/playfirst <search>` — Plays it before the rest of the queue\n"
-                "`/pause` — Pauses or resumes playback\n"
-                "`/skip` — Skips the current song"
+            "value": _command_list(
+                [
+                    ("/play <search>", "Plays a song or playlist"),
+                    ("/playfirst <search>", "Plays it before the queue"),
+                    ("/pause", "Pauses or resumes playback"),
+                    ("/skip", "Skips the current song"),
+                ]
             ),
             "inline": False,
         },
         {
             "name": "Queue",
-            "value": (
-                "`/queue` — Shows the current queue\n"
-                "`/shuffle` — Shuffles the queue\n"
-                "`/clear` — Clears the queue\n"
-                "`/loop` — Toggles looping of the current song\n"
-                "`/remove <position>` — Removes a song from the queue"
+            "value": _command_list(
+                [
+                    ("/queue", "Shows the current queue"),
+                    ("/shuffle", "Shuffles the queue"),
+                    ("/clear", "Clears the queue"),
+                    ("/loop", "Toggles looping"),
+                    ("/remove <position>", "Removes a song"),
+                ]
             ),
             "inline": False,
         },
         {
             "name": "Other",
-            "value": (
-                "`/leave` — Disconnects the bot from the voice channel\n"
-                "`/clear_cache` — Clears the song cache\n"
-                "`/ping` — Shows the bot's latency\n"
-                "`/restart` — Restarts the bot"
-            ),
-            "inline": False,
-        },
-        {
-            "name": "Good to know",
-            "value": (
-                "- Playlists start as soon as the first song is downloaded, "
-                "the rest is added while loading.\n"
-                "- `/clear` and `/leave` also stop a playlist that is still loading.\n"
-                "- The bot leaves the voice channel after a few minutes without "
-                "music, or when a song ends and nobody else is listening."
+            "value": _command_list(
+                [
+                    ("/leave", "Leaves the voice channel"),
+                    ("/clear_cache", "Clears the song cache"),
+                    ("/ping", "Shows the latency"),
+                    ("/restart", "Restarts the bot"),
+                ]
             ),
             "inline": False,
         },
