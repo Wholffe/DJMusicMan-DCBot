@@ -1,4 +1,5 @@
 import logging
+import re
 import unittest
 from collections.abc import Awaitable, Callable
 from unittest.mock import ANY, AsyncMock, MagicMock, PropertyMock, patch
@@ -222,15 +223,24 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
             self.assertFalse(embed.title)
             self.assertEqual(embed.description, "ping: 123ms")
 
+    async def test_help_lists_every_command_except_help(self):
+        help_text = "\n".join(field["value"] for field in CONST.EMBED_HELP["fields"])
+        listed = set(re.findall(r"`/(\w+)", help_text))
+        registered = {command.name for command in self.bot.tree.get_commands()}
+
+        self.assertEqual(listed, registered - {"help"})
+
     async def test_help_command(self):
         command = self._get_command("help")
         await command(self.ctx)
 
         self.ctx.send.assert_called_once()
         embed = self.ctx.send.call_args[1]["embed"]
-        self.assertEqual(embed.title, "DJ Music Man Help")
-        self.assertEqual(embed.description, "Here are the available commands:")
-        self.assertGreaterEqual(len(embed.fields), 1)
+        self.assertEqual(embed.title, CONST.NAME)
+        self.assertEqual(
+            [field.name for field in embed.fields],
+            ["Playback", "Queue", "Other", "Good to know"],
+        )
 
     async def test_clear_command(self):
         self.musicbot.queue.add_song("url1", "title1")
