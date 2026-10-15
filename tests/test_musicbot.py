@@ -218,9 +218,7 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(embed.title)
         self.assertEqual(embed.description, CONST.MESSAGE_QUEUE_EMPTY)
 
-    @patch("music_bot.commands.is_playing", new_callable=AsyncMock)
-    @patch("music_bot.playback.play_next", new_callable=AsyncMock)
-    async def test_showq_command_with_items(self, mock_play_next, mock_is_playing):
+    async def test_showq_command_with_items(self):
         self.musicbot.queue.add_song("url1", "title1")
         self.musicbot.queue.add_song("url2", "title2")
         self.musicbot.queue.current_song = self.musicbot.queue.get_next_song()

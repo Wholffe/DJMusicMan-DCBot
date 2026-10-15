@@ -471,6 +471,17 @@ class TestCacheManager(unittest.TestCase):
         self.assertTrue(os.path.exists(path_a))
         self.assertFalse(os.path.exists(path_b))
 
+    def test_iter_songs_cache_hit_saves_new_order_to_metadata_file(self):
+        self._write_metadata(
+            {"a search": self._entry("a"), "b search": self._entry("b")}
+        )
+        manager = CacheManager()
+        self._write_song_file("a")
+
+        list(manager.iter_songs("a search"))
+
+        self.assertEqual(list(self._read_metadata()), ["b search", "a search"])
+
     def test_enforce_cache_limit_removes_all_playlist_files(self):
         manager = CacheManager()
         paths = [self._write_song_file("a"), self._write_song_file("b")]
