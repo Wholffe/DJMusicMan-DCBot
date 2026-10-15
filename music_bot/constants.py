@@ -80,16 +80,19 @@ def get_queue_embed():
 # region Messages
 MESSAGE_RESTARTING_BOT: Final = "Restarting bot, please wait..."
 MESSAGE_ADDING_SONGS_STOPPED: Final = "Stopped adding songs to the queue."
+MESSAGE_BOT_NOT_IN_VOICE: Final = "I'm not in a voice channel."
 MESSAGE_CANNOT_CLEAR_CACHE_WHILE_CONNECTED: Final = (
     "Cannot clear cache while connected to a voice channel."
 )
 MESSAGE_DOWNLOADING: Final = "Downloading:"
 MESSAGE_FAILED_VIDEO_INFO: Final = "Failed to retrieve the video information."
+MESSAGE_LEFT_CHANNEL: Final = "Left the voice channel."
 MESSAGE_NO_ACTIVITY_TIMEOUT: Final = "Bot idle for too long. Leaving the voice channel."
 MESSAGE_NO_USERS_IN_CHANNEL: Final = (
     "No users in the voice channel. Leaving the channel."
 )
 MESSAGE_NOT_CONNECTED: Final = "You are not connected to a voice channel."
+MESSAGE_NOTHING_PLAYING: Final = "Nothing is playing."
 MESSAGE_PAUSED_SONG: Final = "Paused the song."
 MESSAGE_PONG: Final = "pong"
 MESSAGE_QUEUE_CLEARED: Final = "Queue cleared."

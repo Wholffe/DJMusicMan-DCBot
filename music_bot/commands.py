@@ -39,6 +39,7 @@ async def cm_playfirst(musicbot, ctx, search: str) -> None:
 async def cm_skip(musicbot, ctx) -> None:
     voice_client = ctx.voice_client
     if not voice_client or not (voice_client.is_playing() or voice_client.is_paused()):
+        await message_handler.send_info(ctx, CONST.MESSAGE_NOTHING_PLAYING)
         return
     musicbot.queue.skip_current_song(ctx)
     await message_handler.send_success(ctx, CONST.MESSAGE_SKIPPED_SONG)
@@ -89,12 +90,17 @@ async def cm_clear(musicbot, ctx) -> None:
 
 @command_handler.handle_errors
 async def cm_leave(ctx) -> None:
+    if not ctx.voice_client:
+        await message_handler.send_info(ctx, CONST.MESSAGE_BOT_NOT_IN_VOICE)
+        return
     await leave_voice_channel(ctx)
+    await message_handler.send_success(ctx, CONST.MESSAGE_LEFT_CHANNEL)
 
 
 @command_handler.handle_errors
 async def cm_toggle(ctx) -> None:
     if not ctx.voice_client:
+        await message_handler.send_info(ctx, CONST.MESSAGE_NOTHING_PLAYING)
         return
     if await is_playing(ctx):
         ctx.voice_client.pause()
@@ -102,6 +108,8 @@ async def cm_toggle(ctx) -> None:
     elif ctx.voice_client.is_paused():
         ctx.voice_client.resume()
         await message_handler.send_success(ctx, CONST.MESSAGE_RESUMED_SONG)
+    else:
+        await message_handler.send_info(ctx, CONST.MESSAGE_NOTHING_PLAYING)
 
 
 @command_handler.handle_errors
@@ -147,7 +155,8 @@ async def cm_remove(musicbot, ctx, index: int) -> None:
 async def cm_restart(musicbot, ctx) -> None:
     await message_handler.send_info(ctx, CONST.MESSAGE_RESTARTING_BOT)
     musicbot.queue.set_loop(False)
-    await cm_leave(ctx)
+    # Not cm_leave, its reply would follow the restart message
+    await leave_voice_channel(ctx)
     await musicbot.client.close()
 
 
