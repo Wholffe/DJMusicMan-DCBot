@@ -106,6 +106,10 @@ class DownloadProgress:
                     self.message = await self.message_handler.send_progress(
                         self.ctx, text
                     )
+            except discord.HTTPException:
+                logger.warning("Failed to update download progress", exc_info=True)
+                # Interaction followups cannot be edited after 15 minutes, send anew
+                self.message = None
             except Exception:
                 # The future is never awaited, so errors would otherwise be lost
                 logger.warning("Failed to update download progress", exc_info=True)

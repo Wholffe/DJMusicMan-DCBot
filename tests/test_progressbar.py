@@ -335,11 +335,11 @@ class TestDownloadProgress(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(logs.records), 1)
         self.assertIsNone(self.progress.message)
 
-    async def test_update_edit_http_exception_logs_warning(self):
+    async def test_update_edit_http_exception_logs_warning_and_resets_message(self):
         sent = MagicMock(spec=discord.Message)
         self.progress.message = sent
         self.message_handler.edit_progress.side_effect = discord.HTTPException(
-            MagicMock(status=500), "boom"
+            MagicMock(status=401), "Invalid Webhook Token"
         )
 
         with self.assertLogs("MusicBot", level=logging.WARNING) as logs:
@@ -347,7 +347,20 @@ class TestDownloadProgress(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(len(logs.records), 1)
         self.message_handler.edit_progress.assert_awaited_once_with(sent, "text")
-        self.assertIs(self.progress.message, sent)
+        self.assertIsNone(self.progress.message)
+
+    async def test_update_after_failed_edit_sends_new_message(self):
+        self.progress.message = MagicMock(spec=discord.Message)
+        self.message_handler.edit_progress.side_effect = discord.HTTPException(
+            MagicMock(status=401), "Invalid Webhook Token"
+        )
+        with self.assertLogs("MusicBot", level=logging.WARNING):
+            await self.progress._update("first")
+
+        await self.progress._update("second")
+
+        self.message_handler.send_progress.assert_awaited_once_with(self.ctx, "second")
+        self.assertIsNotNone(self.progress.message)
 
     def _playlist_status(self, **info: Any) -> dict[str, Any]:
         status = self._status()
