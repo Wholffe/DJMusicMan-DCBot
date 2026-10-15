@@ -44,61 +44,57 @@ async def iter_song_infos(
 async def _add_songs_to_queue(
     ctx, queue: MusicQueue, client, search: str, add_to_front: bool = False
 ) -> bool:
-    async with ctx.typing():
-        if search.lower().startswith("www.youtube.com"):
-            search = f"https://{search}"
+    if search.lower().startswith("www.youtube.com"):
+        search = f"https://{search}"
 
-        progress = DownloadProgress(ctx, asyncio.get_running_loop(), message_handler)
-        generation = queue.generation
-        anchor: Song | None = None
-        titles: list[str] = []
-        queue.loading += 1
-        try:
-            async with contextlib.aclosing(iter_song_infos(search, progress)) as songs:
-                async for song in songs:
-                    # The queue was cleared or the bot left the voice channel
-                    if queue.generation != generation or not ctx.voice_client:
-                        break
-                    if add_to_front:
-                        anchor = queue.add_song_after(
-                            anchor, song["url"], song["title"]
-                        )
-                    else:
-                        queue.add_song(song["url"], song["title"])
-                    titles.append(song["title"])
-                    await start_playback_if_idle(ctx, queue, client)
-        except Exception:
-            # Don't leave the progress message behind, handle_errors reports the error
-            await progress.finish(CONST.MESSAGE_FAILED_VIDEO_INFO, success=False)
-            raise
-        finally:
-            queue.loading -= 1
-            # play_next skips the idle handling while songs are loading, so catch up
-            if ctx.voice_client and not queue.current_song:
+    progress = DownloadProgress(ctx, asyncio.get_running_loop(), message_handler)
+    generation = queue.generation
+    anchor: Song | None = None
+    titles: list[str] = []
+    queue.loading += 1
+    try:
+        async with contextlib.aclosing(iter_song_infos(search, progress)) as songs:
+            async for song in songs:
+                # The queue was cleared or the bot left the voice channel
+                if queue.generation != generation or not ctx.voice_client:
+                    break
+                if add_to_front:
+                    anchor = queue.add_song_after(anchor, song["url"], song["title"])
+                else:
+                    queue.add_song(song["url"], song["title"])
+                titles.append(song["title"])
                 await start_playback_if_idle(ctx, queue, client)
+    except Exception:
+        # Don't leave the progress message behind, handle_errors reports the error
+        await progress.finish(CONST.MESSAGE_FAILED_VIDEO_INFO, success=False)
+        raise
+    finally:
+        queue.loading -= 1
+        # play_next skips the idle handling while songs are loading, so catch up
+        if ctx.voice_client and not queue.current_song:
+            await start_playback_if_idle(ctx, queue, client)
 
-        stopped = queue.generation != generation or not ctx.voice_client
-        success = bool(titles) and not stopped
-        queue_position = "front of the queue" if add_to_front else "queue"
-        if stopped:
-            message = CONST.MESSAGE_ADDING_SONGS_STOPPED
-        elif not titles:
-            message = CONST.MESSAGE_FAILED_VIDEO_INFO
-        elif len(titles) > 1:
-            message = f"Added {len(titles)} songs to the {queue_position}."
-        else:
-            message = f"Added to the {queue_position}: {titles[0]}"
+    stopped = queue.generation != generation or not ctx.voice_client
+    success = bool(titles) and not stopped
+    queue_position = "front of the queue" if add_to_front else "queue"
+    if stopped:
+        message = CONST.MESSAGE_ADDING_SONGS_STOPPED
+    elif not titles:
+        message = CONST.MESSAGE_FAILED_VIDEO_INFO
+    elif len(titles) > 1:
+        message = f"Added {len(titles)} songs to the {queue_position}."
+    else:
+        message = f"Added to the {queue_position}: {titles[0]}"
 
-        if not await progress.finish(message, success=success):
-            send = (
-                message_handler.send_success if success else message_handler.send_error
-            )
-            await send(ctx, message)
-        return success
+    if not await progress.finish(message, success=success):
+        send = message_handler.send_success if success else message_handler.send_error
+        await send(ctx, message)
+    return success
 
 
 async def queue_and_play(musicbot, ctx, search: str, add_to_front: bool) -> None:
     """Joins the voice channel, queues the search results and starts playback."""
+    await ctx.defer()
     if not await join_voice_channel(musicbot, ctx):
         return
     await _add_songs_to_queue(

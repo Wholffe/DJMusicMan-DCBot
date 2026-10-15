@@ -18,6 +18,7 @@ from music_bot.playback import (
     join_voice_channel,
     play_next,
     play_song,
+    queue_and_play,
     start_playback_if_idle,
 )
 from music_bot.progressbar import DownloadProgress
@@ -551,6 +552,39 @@ class TestPlayback(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.queue.queue, [("url1", "title1")])
         self.assertTrue(self.queue.loop)
         self.ctx.send.assert_not_called()
+
+    @patch("music_bot.playback._add_songs_to_queue", new_callable=AsyncMock)
+    @patch("music_bot.playback.join_voice_channel", new_callable=AsyncMock)
+    async def test_queue_and_play_defers_before_joining(
+        self, mock_join_voice_channel, mock_add_songs_to_queue
+    ):
+        musicbot = MagicMock()
+
+        # Joining can take longer than the 3 seconds Discord waits for a response
+        async def join(musicbot, ctx) -> bool:
+            self.ctx.defer.assert_awaited_once()
+            return True
+
+        mock_join_voice_channel.side_effect = join
+
+        await queue_and_play(musicbot, self.ctx, "search", add_to_front=False)
+
+        mock_join_voice_channel.assert_awaited_once_with(musicbot, self.ctx)
+        mock_add_songs_to_queue.assert_awaited_once_with(
+            self.ctx, musicbot.queue, musicbot.client, "search", False
+        )
+
+    @patch("music_bot.playback._add_songs_to_queue", new_callable=AsyncMock)
+    @patch("music_bot.playback.join_voice_channel", new_callable=AsyncMock)
+    async def test_queue_and_play_defers_when_join_fails(
+        self, mock_join_voice_channel, mock_add_songs_to_queue
+    ):
+        mock_join_voice_channel.return_value = False
+
+        await queue_and_play(MagicMock(), self.ctx, "search", add_to_front=False)
+
+        self.ctx.defer.assert_awaited_once()
+        mock_add_songs_to_queue.assert_not_called()
 
     @patch("music_bot.playback.play_next", new_callable=AsyncMock)
     async def test_start_playback_if_idle_while_playing_does_nothing(
