@@ -1,9 +1,11 @@
 #!/bin/bash
 
-PROJECT_PATH=$(pwd)
+PROJECT_PATH="$(cd "$(dirname "$0")/../.." && pwd)"
 CONTAINER_NAME="djmusicman"
 IMAGE="ghcr.io/wholffe/djmusicman-dcbot:latest"
 DATA_PATH="$PROJECT_PATH/data"
+
+cd "$PROJECT_PATH" || exit 1
 
 mkdir -p "$DATA_PATH"
 chmod 777 "$DATA_PATH"

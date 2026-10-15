@@ -1,9 +1,11 @@
 #!/bin/bash
 
-PROJECT_PATH=$(pwd)
+PROJECT_PATH="$(cd "$(dirname "$0")/../.." && pwd)"
 CONTAINER_NAME="djmusicman"
 DOCKER_IMAGE_NAME="djmusicman"
 DATA_PATH="$PROJECT_PATH/data"
+
+cd "$PROJECT_PATH" || exit 1
 
 #git pull origin main --force
 

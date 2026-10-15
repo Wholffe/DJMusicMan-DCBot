@@ -11,8 +11,8 @@ if (-not (Test-Path -Path $dataPath)) {
     New-Item -ItemType Directory -Path $dataPath
 }
 
-docker stop $dockerImageName
-docker rm $dockerImageName
+docker stop $dockerImageName 2>$null
+docker rm $dockerImageName 2>$null
 
 docker build --no-cache -t $dockerImageName .
 docker run -d `

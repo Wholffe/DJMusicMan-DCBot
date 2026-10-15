@@ -2,7 +2,10 @@ $containerName = "djmusicman"
 $image = "ghcr.io/wholffe/djmusicman-dcbot:latest"
 
 $scriptPath = $PSScriptRoot
-$dataPath = Join-Path -Path $scriptPath -ChildPath "data"
+$rootPath = (Get-Item $scriptPath).parent.parent.FullName
+$dataPath = Join-Path -Path $rootPath -ChildPath "data"
+
+Set-Location -Path $rootPath
 
 if (-not (Test-Path -Path $dataPath)) {
     New-Item -ItemType Directory -Path $dataPath
@@ -10,8 +13,8 @@ if (-not (Test-Path -Path $dataPath)) {
 
 docker pull $image
 
-docker stop $containerName -ErrorAction SilentlyContinue
-docker rm $containerName -ErrorAction SilentlyContinue
+docker stop $containerName 2>$null
+docker rm $containerName 2>$null
 
 docker run -d `
     --name $containerName `
