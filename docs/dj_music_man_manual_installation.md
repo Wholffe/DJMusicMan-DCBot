@@ -4,8 +4,9 @@ These steps cover only the parts that differ when installing DJ Music Man withou
 
 ## Requirements
 
-* Python 3.8 or higher
+* Python 3.11 or higher
 * FFmpeg installed and available in your system's PATH
+* [Deno](https://deno.com/) installed and available in your system's PATH (used by `yt-dlp` to solve YouTube's JavaScript challenges)
 
 ## Install Dependencies
 
@@ -23,5 +24,5 @@ python main.py
 
 ## Notes
 
-* Make sure FFmpeg is correctly installed and accessible via PATH.
+* Make sure FFmpeg and Deno are correctly installed and accessible via PATH.
 * The `.env` file should still be configured as in the main installation guide.

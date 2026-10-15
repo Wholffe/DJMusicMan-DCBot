@@ -27,8 +27,12 @@ DISCORD_TOKEN=your-discord-bot-token-goes-here
 # --- Optional ---
 MAX_CACHE_FILES=100
 IDLE_TIMER=180
+STARTUP_CHANNEL_ID=0
+# DATA_DIR=./data
 ```
-Replace `your-discord-bot-token-goes-here` with your actual token.
+Replace `your-discord-bot-token-goes-here` with your actual token.  
+Set `STARTUP_CHANNEL_ID` to the ID of a text channel to have the bot post a ready message with its version there on startup. `0` disables this.  
+`DATA_DIR` is the directory for cache, logs and cookies. It defaults to `./data`; the Docker image sets it to `/data` (the mounted volume). When running without Docker, you can change it in `.env`. When using Docker, leave it unset, since a value in `.env` overrides the image setting.
 
 ### 3️ Add YouTube Cookies (Optional)
 For playing age-restricted or members-only videos, the bot needs access to a YouTube account's cookies. This step is optional for public videos.  
@@ -49,16 +53,25 @@ For playing age-restricted or members-only videos, the bot needs access to a You
   ```
 
   These scripts will:
-  - Stop and remove any old container
-  - Build a fresh Docker image
-  - Start the container with the correct settings, mounting the data directory for persistent caching and mapping your `.env` file
+  - Create the `data` directory if it does not exist
+  - Pull the latest prebuilt image `ghcr.io/wholffe/djmusicman-dcbot:latest`
+  - Stop and remove any old `djmusicman` container
+  - Start the container with your `.env` file, mounting the `data` directory to `/data` for persistent cache, logs and cookies
+  - Remove dangling Docker images
+
+  To build the image from your local source instead, use `scripts/linux/localbuild_container.sh` or `scripts\windows\localbuild_container.ps1`. They do the same, but build the image `djmusicman` with `docker build` instead of pulling it.
 
   #### Manual Docker Run (Alternative)
+  This uses a locally built image named `djmusicman`. Build it first (or run `scripts/linux/localbuild_container.sh`):
+  ```bash
+  docker build -t djmusicman .
+  ```
+  Then start the container:
   ```bash
   docker run -d \
     --name djmusicman \
     --env-file .env \
-    -v "$(pwd)/cache:/app/cache" \
+    -v "$(pwd)/data:/data" \
     --restart unless-stopped \
     djmusicman
   ```
