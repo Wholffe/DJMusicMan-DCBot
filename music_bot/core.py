@@ -19,15 +19,15 @@ from .commands import (
 from .config import STARTUP_CHANNEL_ID
 from .constants import VERSION
 from .logger import logger
-from .message_handler import MessageHandler
 from .music_queue import MusicQueue
+from .services import message_handler
 
 
 class MusicBot(commands.Cog):
     def __init__(self, bot) -> None:
         self.client = bot
         self.queue = MusicQueue()
-        self.message_handler = MessageHandler()
+        self.message_handler = message_handler
         self.client.remove_command("help")
 
     @commands.Cog.listener()

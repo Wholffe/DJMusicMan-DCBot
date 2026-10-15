@@ -9,7 +9,7 @@ from .message_handler import MessageHandler
 
 # region Global Instances
 message_handler = MessageHandler()
-idle_timer = IdleTimer()
+idle_timer = IdleTimer(message_handler)
 cache_manager = CacheManager()
 command_handler = CommandHandler(message_handler)
 executor = ThreadPoolExecutor(max_workers=5)

@@ -40,7 +40,7 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         self.bot = commands.Bot(command_prefix="/", intents=intents)
         self.musicbot = MusicBot(self.bot)
         self.message_handler = MessageHandler()
-        self.idle_timer = IdleTimer()
+        self.idle_timer = IdleTimer(self.message_handler)
         await self.bot.add_cog(self.musicbot)
 
         self.ctx = MagicMock(spec=commands.Context)

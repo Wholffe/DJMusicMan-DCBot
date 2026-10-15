@@ -7,8 +7,8 @@ from .message_handler import MessageHandler
 
 
 class IdleTimer:
-    def __init__(self) -> None:
-        self.message_handler = MessageHandler()
+    def __init__(self, message_handler: MessageHandler) -> None:
+        self.message_handler = message_handler
         self.current_timer = 0
         self.MAX_DURATION_TIMEOUT = IDLE_TIMER["max_duration_timeout"]
         self.timer_task: asyncio.Task[None] | None = None

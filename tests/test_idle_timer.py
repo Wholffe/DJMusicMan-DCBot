@@ -4,13 +4,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from discord.ext import commands
 
 import music_bot.constants as CONST
+import music_bot.services as services
 from music_bot.config import IDLE_TIMER
 from music_bot.idle_timer import IdleTimer
 
 
 class TestIdleTimer(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
-        self.idle_timer = IdleTimer()
+        self.idle_timer = IdleTimer(services.message_handler)
         self.ctx = MagicMock(spec=commands.Context)
         self.ctx.voice_client = MagicMock()
         self.ctx.voice_client.disconnect = AsyncMock()
