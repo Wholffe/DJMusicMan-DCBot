@@ -40,5 +40,29 @@ class TestDataDir(unittest.TestCase):
         )
 
 
+class TestGuildId(unittest.TestCase):
+    def setUp(self):
+        # The reloads below replace the module values, so restore them afterwards
+        self.addCleanup(importlib.reload, config)
+
+    def _reload_config(self, guild_id: str) -> None:
+        # A local .env must not change the result
+        with (
+            patch.dict(os.environ, {"GUILD_ID": guild_id}),
+            patch("dotenv.load_dotenv"),
+        ):
+            importlib.reload(config)
+
+    def test_guild_id_set_is_used(self):
+        self._reload_config("123456789")
+
+        self.assertEqual(config.GUILD_ID, 123456789)
+
+    def test_guild_id_empty_falls_back_to_default(self):
+        self._reload_config("")
+
+        self.assertEqual(config.GUILD_ID, 0)
+
+
 if __name__ == "__main__":
     unittest.main()

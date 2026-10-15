@@ -28,10 +28,12 @@ DISCORD_TOKEN=your-discord-bot-token-goes-here
 MAX_CACHE_FILES=100
 IDLE_TIMER=180
 STARTUP_CHANNEL_ID=0
+GUILD_ID=0
 # DATA_DIR=./data
 ```
 Replace `your-discord-bot-token-goes-here` with your actual token.  
 Set `STARTUP_CHANNEL_ID` to the ID of a text channel to have the bot post a ready message with its version there on startup. `0` disables this.  
+Set `GUILD_ID` to the ID of your Discord server to make the commands available there immediately. `0` registers them globally, which can take up to an hour. Switching between both can leave duplicate commands.  
 `DATA_DIR` is the directory for cache, logs and cookies. It defaults to `./data`; the Docker image sets it to `/data` (the mounted volume). When running without Docker, you can change it in `.env`. When using Docker, leave it unset, since a value in `.env` overrides the image setting.
 
 ### 3️ Add YouTube Cookies (Optional)

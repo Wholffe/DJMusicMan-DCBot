@@ -14,6 +14,7 @@ def get_env_int(varname: str, default: int) -> int:
 
 
 STARTUP_CHANNEL_ID = get_env_int("STARTUP_CHANNEL_ID", 0)
+GUILD_ID = get_env_int("GUILD_ID", 0)
 DATA_DIR = os.environ.get("DATA_DIR") or "./data"
 CACHE_DIR = os.path.join(DATA_DIR, "cache")
 COOKIES_FILE_PATH = os.path.join(DATA_DIR, "cookies.txt")
