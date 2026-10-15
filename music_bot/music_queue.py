@@ -1,3 +1,4 @@
+import asyncio
 import random
 
 Song = tuple[str, str]  # (url, title)
@@ -11,12 +12,23 @@ class MusicQueue:
         self.current_song: Song | None = None
         self.loop = False
         self._skip_current = False
+        self.generation = 0  # incremented on clear, so running loads can stop
+        self.playback_lock = asyncio.Lock()
+        self.loading = 0  # number of running load operations
 
     def add_song(self, url: str, title: str) -> None:
         self.queue.append((url, title))
 
     def add_song_first(self, url: str, title: str) -> None:
         self.queue.insert(0, (url, title))
+
+    def add_song_after(self, anchor: Song | None, url: str, title: str) -> Song:
+        """Inserts a song directly after the anchor, or first if it is gone."""
+        song = (url, title)
+        # Compare by identity, the same song can be queued more than once
+        index = next((i + 1 for i, s in enumerate(self.queue) if s is anchor), 0)
+        self.queue.insert(index, song)
+        return song
 
     def get_next_song(self) -> Song | None:
         if self.loop and self.current_song and not self._skip_current:
@@ -28,6 +40,7 @@ class MusicQueue:
     def clear(self) -> None:
         self.queue.clear()
         self.current_song = None
+        self.generation += 1
 
     def is_empty(self) -> bool:
         return not self.queue

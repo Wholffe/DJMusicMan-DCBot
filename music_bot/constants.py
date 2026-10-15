@@ -79,6 +79,7 @@ def get_queue_embed():
 
 # region Messages
 MESSAGE_RESTARTING_BOT: Final = "Restarting bot, please wait..."
+MESSAGE_ADDING_SONGS_STOPPED: Final = "Stopped adding songs to the queue."
 MESSAGE_CANNOT_CLEAR_CACHE_WHILE_CONNECTED: Final = (
     "Cannot clear cache while connected to a voice channel."
 )

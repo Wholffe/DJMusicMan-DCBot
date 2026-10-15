@@ -1,6 +1,6 @@
 import json
 import os
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Generator, Iterator, Mapping
 from typing import TYPE_CHECKING, Any, cast
 
 import yt_dlp  # type: ignore[import-untyped]
@@ -94,29 +94,28 @@ class CacheManager:
 
         self._save_metadata()
 
-    def _process_entries(
+    def _iter_cached_entries(
         self,
         entries: list[dict[str, Any]],
         progress_hook: ProgressHook | None = None,
-    ) -> list[dict[str, str]]:
-        """Builds a list of songs from entries, ensuring files are downloaded."""
-        songs = []
-        for entry in entries:
-            if not entry:
-                continue
-
-            filepath = self._download_song_if_missing(entry, progress_hook)
+    ) -> Iterator[dict[str, str]]:
+        """Yields songs from cached entries, ensuring files are downloaded."""
+        entries = [entry for entry in entries if entry]
+        for index, entry in enumerate(entries, start=1):
+            # Lets the progress message show the (i/n) counter for playlists
+            extra_info = {"playlist_index": index, "n_entries": len(entries)}
+            filepath = self._download_song_if_missing(entry, progress_hook, extra_info)
             if filepath:
-                songs.append(
-                    {
-                        "url": filepath,
-                        "title": entry.get("title", "Unknown Title"),
-                    }
-                )
-        return songs
+                yield {
+                    "url": filepath,
+                    "title": entry.get("title", "Unknown Title"),
+                }
 
     def _download_song_if_missing(
-        self, entry: dict[str, Any], progress_hook: ProgressHook | None = None
+        self,
+        entry: dict[str, Any],
+        progress_hook: ProgressHook | None = None,
+        extra_info: dict[str, Any] | None = None,
     ) -> str | None:
         """Gets the filepath for an entry, downloading the file if it doesn't exist."""
         with _create_ydl() as ydl:
@@ -127,7 +126,9 @@ class CacheManager:
 
         try:
             with _create_ydl(download=True, progress_hook=progress_hook) as ydl_dl:
-                ydl_dl.download([entry["webpage_url"]])
+                ydl_dl.extract_info(
+                    entry["webpage_url"], download=True, extra_info=extra_info
+                )
         except (DownloadError, ExtractorError):
             logger.warning(
                 f"Failed to download '{entry['webpage_url']}'", exc_info=True
@@ -136,34 +137,63 @@ class CacheManager:
 
         return filepath
 
-    def _fetch_and_cache_new_song(
+    def _fetch_and_cache_new_songs(
         self, search: str, progress_hook: ProgressHook | None = None
-    ) -> dict[str, Any] | None:
-        """Fetches info and downloads a new song in one step, then caches it."""
-        try:
-            with _create_ydl(download=True, progress_hook=progress_hook) as ydl:
-                info = ydl.extract_info(search, download=True)
-        except (DownloadError, ExtractorError):
-            logger.warning(f"Failed to fetch '{search}'", exc_info=True)
-            return None
+    ) -> Iterator[dict[str, str]]:
+        """Downloads new songs one by one and caches them once all are done."""
+        pruned_entries: list[dict[str, Any]] = []
+        with _create_ydl(download=True, progress_hook=progress_hook) as ydl:
+            try:
+                info = ydl.extract_info(search, download=False, process=False)
+                if not info:
+                    return
+                # Only resolves the flat playlist pages, nothing is downloaded yet
+                entries = [e for e in info.get("entries", [info]) if e]
+            except (DownloadError, ExtractorError):
+                logger.warning(f"Failed to fetch '{search}'", exc_info=True)
+                return
 
-        pruned_info = self._prune_metadata(info)
-        self.metadata_cache[search] = pruned_info
+            for index, entry in enumerate(entries, start=1):
+                # Lets the progress message show the (i/n) counter for playlists
+                extra_info = {"playlist_index": index, "n_entries": len(entries)}
+                try:
+                    result = ydl.process_ie_result(
+                        entry, download=True, extra_info=extra_info
+                    )
+                except (DownloadError, ExtractorError):
+                    logger.warning(
+                        f"Failed to download '{entry.get('url', search)}'",
+                        exc_info=True,
+                    )
+                    continue
+                if not result:
+                    continue
+
+                for video in result.get("entries", [result]):
+                    pruned_entries.append(self._prune_metadata(video))
+                    yield {
+                        "url": ydl.prepare_filename(video),
+                        "title": video.get("title", "Unknown Title"),
+                    }
+
+        # Only reached if the consumer did not stop early
+        if not pruned_entries:
+            return
+        self.metadata_cache[search] = {"entries": pruned_entries}
         self._enforce_cache_limit()
-        return pruned_info
 
-    def get_songs(
+    def iter_songs(
         self, search: str, progress_hook: ProgressHook | None = None
-    ) -> list[dict[str, str]]:
-        """Main method to get song data using guard clauses for clarity."""
+    ) -> Generator[dict[str, str], None, None]:
+        """Yields song data one by one, downloading each song as needed."""
         if search in self.metadata_cache:
             info = self.metadata_cache[search]
-            return self._process_entries(info.get("entries", [info]), progress_hook)
+            yield from self._iter_cached_entries(
+                info.get("entries", [info]), progress_hook
+            )
+            return
 
-        new_info = self._fetch_and_cache_new_song(search, progress_hook)
-        if not new_info:
-            return []
-        return self._process_entries(new_info.get("entries", [new_info]), progress_hook)
+        yield from self._fetch_and_cache_new_songs(search, progress_hook)
 
     def clear_cache(self) -> tuple[int, float]:
         """Clears the entire cache and returns the deleted file count and freed MB."""

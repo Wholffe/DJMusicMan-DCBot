@@ -37,6 +37,11 @@ class TestCacheManager(unittest.TestCase):
         self.ydl = MagicMock()
         self.mock_ydl_cls.return_value.__enter__.return_value = self.ydl
         self.ydl.prepare_filename.side_effect = self._song_path
+        # Resolving an entry returns the full info, with keys that get pruned
+        self.ydl.process_ie_result.side_effect = lambda entry, download, extra_info: {
+            **entry,
+            "duration": 1,
+        }
 
         self.metadata_path = os.path.join(self.cache_dir, "metadata_cache.json")
 
@@ -116,42 +121,168 @@ class TestCacheManager(unittest.TestCase):
 
         self.assertEqual(pruned, {"entries": [self._entry("a"), self._entry("b")]})
 
-    def test_get_songs_cached_with_existing_file_does_not_download(self):
+    def _extra_info(self, index: int, count: int) -> dict:
+        return {"playlist_index": index, "n_entries": count}
+
+    def test_iter_songs_cached_with_existing_file_does_not_download(self):
         self._write_metadata({"search": self._entry("a")})
         manager = CacheManager()
         path = self._write_song_file("a")
 
-        songs = manager.get_songs("search")
+        songs = list(manager.iter_songs("search"))
 
         self.assertEqual(songs, [{"url": path, "title": "title a"}])
         self.ydl.extract_info.assert_not_called()
-        self.ydl.download.assert_not_called()
+        self.ydl.process_ie_result.assert_not_called()
 
-    def test_get_songs_cached_with_missing_file_downloads_it(self):
+    def test_iter_songs_cached_with_missing_file_downloads_it(self):
         self._write_metadata({"search": self._entry("a")})
         manager = CacheManager()
 
-        songs = manager.get_songs("search")
+        songs = list(manager.iter_songs("search"))
 
         self.assertEqual(
             songs, [{"url": self._song_path(self._entry("a")), "title": "title a"}]
         )
-        self.ydl.download.assert_called_once_with([self._entry("a")["webpage_url"]])
-        self.ydl.extract_info.assert_not_called()
+        self.ydl.extract_info.assert_called_once_with(
+            self._entry("a")["webpage_url"],
+            download=True,
+            extra_info=self._extra_info(1, 1),
+        )
 
-    def test_get_songs_new_search_fetches_and_caches_pruned_info(self):
+    def test_iter_songs_cached_playlist_passes_index_and_count(self):
+        entries = [self._entry("a"), self._entry("b")]
+        self._write_metadata({"playlist": {"entries": entries}})
         manager = CacheManager()
-        self.ydl.extract_info.return_value = {**self._entry("a"), "duration": 1}
-        self._write_song_file("a")
 
-        songs = manager.get_songs("new search")
+        list(manager.iter_songs("playlist"))
 
-        self.ydl.extract_info.assert_called_once_with("new search", download=True)
+        self.assertEqual(
+            [c.kwargs["extra_info"] for c in self.ydl.extract_info.call_args_list],
+            [self._extra_info(1, 2), self._extra_info(2, 2)],
+        )
+
+    def test_iter_songs_new_search_fetches_and_caches_pruned_info(self):
+        manager = CacheManager()
+        self.ydl.extract_info.return_value = self._entry("a")
+
+        songs = list(manager.iter_songs("new search"))
+
+        self.ydl.extract_info.assert_called_once_with(
+            "new search", download=False, process=False
+        )
+        self.ydl.process_ie_result.assert_called_once_with(
+            self._entry("a"), download=True, extra_info=self._extra_info(1, 1)
+        )
         self.assertEqual(
             songs, [{"url": self._song_path(self._entry("a")), "title": "title a"}]
         )
-        self.assertEqual(manager.metadata_cache, {"new search": self._entry("a")})
-        self.assertEqual(self._read_metadata(), {"new search": self._entry("a")})
+        expected = {"entries": [self._entry("a")]}
+        self.assertEqual(manager.metadata_cache, {"new search": expected})
+        self.assertEqual(self._read_metadata(), {"new search": expected})
+
+    def test_iter_songs_new_playlist_caches_entries(self):
+        manager = CacheManager()
+        self.ydl.extract_info.return_value = {
+            "entries": [self._entry("a"), None, self._entry("b")]
+        }
+
+        songs = list(manager.iter_songs("playlist"))
+
+        self.assertEqual([song["title"] for song in songs], ["title a", "title b"])
+        self.assertEqual(
+            [c.kwargs["extra_info"] for c in self.ydl.process_ie_result.call_args_list],
+            [self._extra_info(1, 2), self._extra_info(2, 2)],
+        )
+        expected = {"entries": [self._entry("a"), self._entry("b")]}
+        self.assertEqual(manager.metadata_cache, {"playlist": expected})
+        self.assertEqual(self._read_metadata(), {"playlist": expected})
+
+    def test_iter_songs_new_playlist_yields_first_song_before_next_download(self):
+        manager = CacheManager()
+        self.ydl.extract_info.return_value = {
+            "entries": [self._entry("a"), self._entry("b")]
+        }
+        songs = manager.iter_songs("playlist")
+
+        first = next(songs)
+
+        self.assertEqual(first["title"], "title a")
+        self.ydl.process_ie_result.assert_called_once()
+        self.assertEqual(manager.metadata_cache, {})
+        self.assertFalse(os.path.exists(self.metadata_path))
+
+    def test_iter_songs_new_playlist_closed_early_caches_nothing(self):
+        manager = CacheManager()
+        self.ydl.extract_info.return_value = {
+            "entries": [self._entry("a"), self._entry("b")]
+        }
+        songs = manager.iter_songs("playlist")
+        next(songs)
+
+        songs.close()
+
+        self.ydl.process_ie_result.assert_called_once()
+        self.assertEqual(manager.metadata_cache, {})
+        self.assertFalse(os.path.exists(self.metadata_path))
+
+    def test_iter_songs_new_playlist_skips_failed_entry_and_caches_rest(self):
+        manager = CacheManager()
+        self.ydl.extract_info.return_value = {
+            "entries": [self._entry("a"), self._entry("b"), self._entry("c")]
+        }
+
+        def process(entry: dict, download: bool, extra_info: dict) -> dict:
+            if entry["id"] == "b":
+                raise DownloadError("failed")
+            return entry
+
+        self.ydl.process_ie_result.side_effect = process
+
+        songs = list(manager.iter_songs("playlist"))
+
+        self.assertEqual([song["title"] for song in songs], ["title a", "title c"])
+        self.assertEqual(
+            manager.metadata_cache,
+            {"playlist": {"entries": [self._entry("a"), self._entry("c")]}},
+        )
+
+    def test_iter_songs_new_playlist_flattens_nested_entries(self):
+        manager = CacheManager()
+        self.ydl.extract_info.return_value = {"entries": [{"url": "nested"}]}
+        self.ydl.process_ie_result.side_effect = None
+        self.ydl.process_ie_result.return_value = {
+            "entries": [self._entry("a"), self._entry("b")]
+        }
+
+        songs = list(manager.iter_songs("playlist"))
+
+        self.assertEqual([song["title"] for song in songs], ["title a", "title b"])
+        self.assertEqual(
+            manager.metadata_cache,
+            {"playlist": {"entries": [self._entry("a"), self._entry("b")]}},
+        )
+
+    def test_iter_songs_new_search_without_info_yields_nothing(self):
+        manager = CacheManager()
+        self.ydl.extract_info.return_value = None
+
+        songs = list(manager.iter_songs("nothing"))
+
+        self.assertEqual(songs, [])
+        self.ydl.process_ie_result.assert_not_called()
+        self.assertEqual(manager.metadata_cache, {})
+
+    def test_iter_songs_new_search_all_downloads_failed_caches_nothing(self):
+        manager = CacheManager()
+        self.ydl.extract_info.return_value = self._entry("a")
+        self.ydl.process_ie_result.side_effect = ExtractorError("failed")
+
+        songs = list(manager.iter_songs("broken"))
+
+        self.assertEqual(songs, [])
+        self.assertEqual(manager.metadata_cache, {})
+        self.assertFalse(os.path.exists(self.metadata_path))
 
     def _ydl_params(self) -> list[dict]:
         return [c.args[0] for c in self.mock_ydl_cls.call_args_list]
@@ -182,66 +313,53 @@ class TestCacheManager(unittest.TestCase):
         self.assertEqual(params, {**YDLP_OPTIONS, "progress_hooks": [hook]})
         self.assertNotIn("progress_hooks", YDLP_OPTIONS)
 
-    def test_get_songs_new_search_passes_progress_hook(self):
+    def test_iter_songs_new_search_passes_progress_hook(self):
         manager = CacheManager()
         self.ydl.extract_info.return_value = self._entry("a")
-        self._write_song_file("a")
         hook = MagicMock()
 
-        manager.get_songs("new search", progress_hook=hook)
+        list(manager.iter_songs("new search", progress_hook=hook))
 
         download_params = [p for p in self._ydl_params() if "skip_download" in p]
         self.assertEqual(len(download_params), 1)
         self.assertEqual(download_params[0]["progress_hooks"], [hook])
 
-    def test_get_songs_cached_with_missing_file_passes_progress_hook(self):
+    def test_iter_songs_cached_with_missing_file_passes_progress_hook(self):
         self._write_metadata({"search": self._entry("a")})
         manager = CacheManager()
         hook = MagicMock()
 
-        manager.get_songs("search", progress_hook=hook)
+        list(manager.iter_songs("search", progress_hook=hook))
 
         download_params = [p for p in self._ydl_params() if "skip_download" in p]
         self.assertEqual(len(download_params), 1)
         self.assertEqual(download_params[0]["progress_hooks"], [hook])
-        self.ydl.download.assert_called_once_with([self._entry("a")["webpage_url"]])
 
-    def test_get_songs_without_hook_sets_no_progress_hooks(self):
+    def test_iter_songs_without_hook_sets_no_progress_hooks(self):
         self._write_metadata({"search": self._entry("a")})
         manager = CacheManager()
 
-        manager.get_songs("search")
+        list(manager.iter_songs("search"))
 
         for params in self._ydl_params():
             self.assertNotIn("progress_hooks", params)
 
-    def test_get_songs_playlist_returns_all_entries(self):
-        manager = CacheManager()
-        self.ydl.extract_info.return_value = {
-            "entries": [self._entry("a"), self._entry("b")]
-        }
-        self._write_song_file("a")
-        self._write_song_file("b")
-
-        songs = manager.get_songs("playlist")
-
-        self.assertEqual([song["title"] for song in songs], ["title a", "title b"])
-
-    def test_get_songs_download_error_returns_empty_and_does_not_cache(self):
+    def test_iter_songs_download_error_yields_nothing_and_does_not_cache(self):
         manager = CacheManager()
         self.ydl.extract_info.side_effect = DownloadError("failed")
 
-        songs = manager.get_songs("broken")
+        songs = list(manager.iter_songs("broken"))
 
         self.assertEqual(songs, [])
+        self.ydl.process_ie_result.assert_not_called()
         self.assertEqual(manager.metadata_cache, {})
 
-    def test_process_entries_skips_empty_and_defaults_title(self):
+    def test_iter_cached_entries_skips_empty_and_defaults_title(self):
         manager = CacheManager()
         entry = {"id": "a", "webpage_url": "https://www.youtube.com/watch?v=a"}
         self._write_song_file("a")
 
-        songs = manager._process_entries([None, {}, entry])  # type: ignore[list-item]
+        songs = list(manager._iter_cached_entries([None, {}, entry]))  # type: ignore[list-item]
 
         self.assertEqual(
             songs, [{"url": self._song_path(entry), "title": "Unknown Title"}]
@@ -276,29 +394,31 @@ class TestCacheManager(unittest.TestCase):
 
     def test_download_song_if_missing_download_error_returns_none(self):
         manager = CacheManager()
-        self.ydl.download.side_effect = DownloadError("failed")
+        self.ydl.extract_info.side_effect = DownloadError("failed")
 
         self.assertIsNone(manager._download_song_if_missing(self._entry("a")))
 
     def test_download_song_if_missing_extractor_error_returns_none(self):
         manager = CacheManager()
-        self.ydl.download.side_effect = ExtractorError("failed")
+        self.ydl.extract_info.side_effect = ExtractorError("failed")
 
         self.assertIsNone(manager._download_song_if_missing(self._entry("a")))
 
-    def test_process_entries_skips_entry_with_failed_download(self):
+    def test_iter_cached_entries_skips_entry_with_failed_download(self):
         manager = CacheManager()
         self._write_song_file("b")
         failing_url = self._entry("a")["webpage_url"]
 
-        def download(urls: list[str]) -> None:
-            if urls == [failing_url]:
+        def extract_info(url: str, download: bool, extra_info: dict) -> None:
+            if url == failing_url:
                 raise DownloadError("failed")
 
-        self.ydl.download.side_effect = download
+        self.ydl.extract_info.side_effect = extract_info
 
-        songs = manager._process_entries(
-            [self._entry("a"), self._entry("b"), self._entry("c")]
+        songs = list(
+            manager._iter_cached_entries(
+                [self._entry("a"), self._entry("b"), self._entry("c")]
+            )
         )
 
         self.assertEqual(
@@ -309,12 +429,12 @@ class TestCacheManager(unittest.TestCase):
             ],
         )
 
-    def test_get_songs_cached_with_failing_download_returns_empty(self):
+    def test_iter_songs_cached_with_failing_download_yields_nothing(self):
         self._write_metadata({"search": self._entry("a")})
         manager = CacheManager()
-        self.ydl.download.side_effect = DownloadError("failed")
+        self.ydl.extract_info.side_effect = DownloadError("failed")
 
-        self.assertEqual(manager.get_songs("search"), [])
+        self.assertEqual(list(manager.iter_songs("search")), [])
         self.assertEqual(manager.metadata_cache, {"search": self._entry("a")})
 
     def test_enforce_cache_limit_removes_oldest_entry_and_file(self):

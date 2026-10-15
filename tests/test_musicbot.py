@@ -19,6 +19,21 @@ intents.message_content = True
 intents.voice_states = True
 
 
+def _yield_songs(*songs: dict[str, str]):
+    """Returns a side effect for iter_song_infos that yields the given songs."""
+
+    async def iter_song_infos(search, progress_hook):
+        for song in songs:
+            yield song
+
+    return iter_song_infos
+
+
+async def _pop_next_song(ctx, queue: MusicQueue, client) -> None:
+    """Stands in for play_next, which takes the next song from the queue."""
+    queue.get_next_song()
+
+
 class TestMusicBot(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         logging.getLogger("MusicBot").setLevel(logging.CRITICAL + 1)
@@ -40,6 +55,7 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         self.ctx.voice_client.resume = MagicMock()
 
         self.ctx.voice_client.is_playing = MagicMock(return_value=True)
+        self.ctx.voice_client.is_paused = MagicMock(return_value=False)
         self.ctx.send = AsyncMock()
         self.ctx.bot = self.bot
         self.musicbot.queue = MusicQueue()
@@ -49,33 +65,34 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         assert command is not None, f"Command '{name}' is not registered"
         return command
 
-    def _assert_called_with_progress(self, mock_get_song_infos, search: str) -> None:
-        mock_get_song_infos.assert_called_once()
-        args = mock_get_song_infos.call_args.args
+    def _assert_called_with_progress(self, mock_iter_song_infos, search: str) -> None:
+        mock_iter_song_infos.assert_called_once()
+        args = mock_iter_song_infos.call_args.args
         self.assertEqual(args[0], search)
         self.assertIsInstance(args[1], DownloadProgress)
         self.assertIs(args[1].message_handler, utils.message_handler)
 
-    @patch("music_bot.utils.is_playing", new_callable=AsyncMock)
     @patch("music_bot.utils.play_next", new_callable=AsyncMock)
-    @patch("music_bot.utils.get_song_infos", new_callable=AsyncMock)
+    @patch("music_bot.utils.iter_song_infos")
     @patch("music_bot.utils.join_voice_channel", new_callable=AsyncMock)
     async def test_cm_play(
         self,
         mock_join_voice_channel,
-        mock_get_song_infos,
+        mock_iter_song_infos,
         mock_play_next,
-        mock_is_playing,
     ):
         mock_join_voice_channel.return_value = True
-        mock_get_song_infos.return_value = [{"url": "test_url", "title": "Test Song"}]
-        mock_is_playing.return_value = False
+        mock_iter_song_infos.side_effect = _yield_songs(
+            {"url": "test_url", "title": "Test Song"}
+        )
+        mock_play_next.side_effect = _pop_next_song
+        self.ctx.voice_client.is_playing.return_value = False
 
         command = self._get_command("play")
         await command(self.ctx, search="test search")
 
         mock_join_voice_channel.assert_called_once_with(self.musicbot, self.ctx)
-        self._assert_called_with_progress(mock_get_song_infos, "test search")
+        self._assert_called_with_progress(mock_iter_song_infos, "test search")
         mock_play_next.assert_called_once_with(
             self.ctx, self.musicbot.queue, self.musicbot.client
         )
@@ -84,56 +101,57 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(embed.title)
         self.assertEqual(embed.description, "Added to the queue: Test Song")
 
-    @patch("music_bot.utils.is_playing", new_callable=AsyncMock)
     @patch("music_bot.utils.play_next", new_callable=AsyncMock)
-    @patch("music_bot.utils.get_song_infos", new_callable=AsyncMock)
+    @patch("music_bot.utils.iter_song_infos")
     @patch("music_bot.utils.join_voice_channel", new_callable=AsyncMock)
     async def test_cm_play_invalid_url(
         self,
         mock_join_voice_channel,
-        mock_get_song_infos,
+        mock_iter_song_infos,
         mock_play_next,
-        mock_is_playing,
     ):
         mock_join_voice_channel.return_value = True
-        mock_get_song_infos.return_value = []
-        mock_is_playing.return_value = False
+        mock_iter_song_infos.side_effect = _yield_songs()
+        self.ctx.voice_client.is_playing.return_value = False
 
         command = self._get_command("play")
         await command(self.ctx, search="invalid url")
 
         mock_join_voice_channel.assert_called_once_with(self.musicbot, self.ctx)
-        self._assert_called_with_progress(mock_get_song_infos, "invalid url")
-        mock_play_next.assert_not_called()
+        self._assert_called_with_progress(mock_iter_song_infos, "invalid url")
+        # Nothing is playing, so play_next runs once to start the idle handling
+        mock_play_next.assert_called_once_with(
+            self.ctx, self.musicbot.queue, self.musicbot.client
+        )
         self.ctx.send.assert_called_once()
         embed = self.ctx.send.call_args[1]["embed"]
         self.assertFalse(embed.title)
         self.assertEqual(embed.description, CONST.MESSAGE_FAILED_VIDEO_INFO)
 
-    @patch("music_bot.utils.is_playing", new_callable=AsyncMock)
     @patch("music_bot.utils.play_next", new_callable=AsyncMock)
-    @patch("music_bot.utils.get_song_infos", new_callable=AsyncMock)
+    @patch("music_bot.utils.iter_song_infos")
     @patch("music_bot.utils.join_voice_channel", new_callable=AsyncMock)
     async def test_cm_playfirst(
         self,
         mock_join_voice_channel,
-        mock_get_song_infos,
+        mock_iter_song_infos,
         mock_play_next,
-        mock_is_playing,
     ):
         mock_join_voice_channel.return_value = True
-        mock_get_song_infos.return_value = [{"url": "test_url", "title": "Test Song"}]
-        mock_is_playing.return_value = False
+        mock_iter_song_infos.side_effect = _yield_songs(
+            {"url": "test_url", "title": "Test Song"}
+        )
+        self.musicbot.queue.add_song("url1", "title1")
 
         command = self._get_command("playfirst")
         await command(self.ctx, search="test search")
 
         mock_join_voice_channel.assert_called_once_with(self.musicbot, self.ctx)
-        self._assert_called_with_progress(mock_get_song_infos, "test search")
-        self.assertEqual(self.musicbot.queue.queue[0][1], "Test Song")
-        mock_play_next.assert_called_once_with(
-            self.ctx, self.musicbot.queue, self.musicbot.client
+        self._assert_called_with_progress(mock_iter_song_infos, "test search")
+        self.assertEqual(
+            [song[1] for song in self.musicbot.queue.queue], ["Test Song", "title1"]
         )
+        mock_play_next.assert_not_called()
         self.ctx.send.assert_called_once()
         embed = self.ctx.send.call_args[1]["embed"]
         self.assertFalse(embed.title)

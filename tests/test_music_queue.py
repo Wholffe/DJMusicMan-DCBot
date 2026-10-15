@@ -137,6 +137,62 @@ class TestMusicQueue(unittest.TestCase):
         self.assertTrue(self.queue.is_empty())
         self.assertIsNone(self.queue.current_song)
 
+    def test_clear_increments_generation(self):
+        generation = self.queue.generation
+
+        self.queue.clear()
+
+        self.assertEqual(self.queue.generation, generation + 1)
+
+    def test_add_song_after_inserts_directly_after_anchor(self):
+        self._add_songs(2)
+        anchor = self.queue.queue[0]
+
+        song = self.queue.add_song_after(anchor, "url0", "title0")
+
+        self.assertEqual(song, ("url0", "title0"))
+        self.assertEqual(
+            [s[1] for s in self.queue.queue], ["title1", "title0", "title2"]
+        )
+
+    def test_add_song_after_without_anchor_inserts_first(self):
+        self._add_songs(2)
+
+        self.queue.add_song_after(None, "url0", "title0")
+
+        self.assertEqual(self.queue.queue[0], ("url0", "title0"))
+
+    def test_add_song_after_missing_anchor_inserts_first(self):
+        self._add_songs(2)
+        anchor = self.queue.get_next_song()
+
+        self.queue.add_song_after(anchor, "url0", "title0")
+
+        self.assertEqual(self.queue.queue, [("url0", "title0"), ("url2", "title2")])
+
+    def test_add_song_after_chained_keeps_order(self):
+        self._add_songs(1)
+
+        anchor = self.queue.add_song_after(None, "urlA", "titleA")
+        self.queue.add_song_after(anchor, "urlB", "titleB")
+
+        self.assertEqual(
+            [s[1] for s in self.queue.queue], ["titleA", "titleB", "title1"]
+        )
+
+    def test_add_song_after_duplicate_song_uses_anchor_identity(self):
+        self.queue.add_song("url1", "title1")
+        anchor = self.queue.add_song_after(None, "url1", "title1")
+
+        self.queue.add_song_after(anchor, "url2", "title2")
+
+        # The equal song queued earlier must not be taken as the anchor
+        self.assertEqual(
+            self.queue.queue,
+            [("url1", "title1"), ("url2", "title2"), ("url1", "title1")],
+        )
+        self.assertIs(self.queue.queue[0], anchor)
+
     def test_clear_keeps_loop_flag(self):
         self.queue.set_loop(True)
 
