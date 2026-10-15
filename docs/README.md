@@ -36,11 +36,21 @@ Set `STARTUP_CHANNEL_ID` to the ID of a text channel to have the bot post a read
 Set `GUILD_ID` to the ID of your Discord server to make the commands available there immediately. `0` registers them globally, which can take up to an hour. Switching between both can leave duplicate commands.  
 `DATA_DIR` is the directory for cache, logs and cookies. It defaults to `./data`; the Docker image sets it to `/data` (the mounted volume). When running without Docker, you can change it in `.env`. When using Docker, leave it unset, since a value in `.env` overrides the image setting.
 
-### 3. Add YouTube Cookies (Optional)
+### 3. Invite the Bot
+Create an invite link in the [Discord Developer Portal](https://discord.com/developers/applications): select your application, open **OAuth2** → **URL Generator** and select:
+- Scopes: `bot` and `applications.commands`
+- Bot permissions: View Channels, Send Messages, Embed Links, Connect, Speak (permission integer `3165184`)
+
+Open the generated URL and add the bot to your server.  
+The bot does not need any Privileged Gateway Intents. You can leave the Message Content Intent (and the other privileged intents) under **Bot** turned off.
+
+**Updating an existing installation:** Updating the bot is usually enough. If the slash commands do not show up, invite the bot again with the new link. You do not need to remove it from the server first.
+
+### 4. Add YouTube Cookies (Optional)
 For playing age-restricted or members-only videos, the bot needs access to a YouTube account's cookies. This step is optional for public videos.  
 [How to Add YouTube Cookies](add_yt_cookies.md)
 
-### 4. Run the Bot
+### 5. Run the Bot
 **With Docker (Recommended)**
 
   **Windows (PowerShell):**
@@ -81,6 +91,27 @@ For playing age-restricted or members-only videos, the bot needs access to a You
 **Without Docker**
 
   For instructions on running the bot without Docker, see the separate file: [Manual Installation Steps](dj_music_man_manual_installation.md)
+
+## Commands
+
+The bot uses Discord slash commands. Type `/` in a text channel of your server to see them. They are not available in direct messages.
+
+| Command | Description |
+|---|---|
+| `/play <search>` | Plays a song or playlist from YouTube. `search` is a YouTube link, playlist or search terms. |
+| `/playfirst <search>` | Plays a song or playlist from YouTube before the rest of the queue. |
+| `/skip` | Skips the current song. |
+| `/pause` | Pauses or resumes playback. |
+| `/queue` | Shows the current queue. |
+| `/shuffle` | Shuffles the queue. |
+| `/clear` | Clears the queue. |
+| `/loop` | Toggles looping of the current song. |
+| `/remove <position>` | Removes a song from the queue. `position` is the position in the queue (see `/queue`). |
+| `/leave` | Disconnects the bot from the voice channel. |
+| `/clear_cache` | Clears the song cache. |
+| `/ping` | Shows the bot's latency. |
+| `/restart` | Restarts the bot. |
+| `/help` | Shows all commands. |
 
 ## Contribution
 
