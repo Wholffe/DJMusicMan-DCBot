@@ -18,6 +18,9 @@ if TYPE_CHECKING:
 
 ProgressHook = Callable[[dict[str, Any]], None]
 
+# YouTube sporadically answers with HTTP 403, a second attempt usually works
+DOWNLOAD_ATTEMPTS = 2
+
 
 def _create_ydl(
     download: bool = False, progress_hook: ProgressHook | None = None
@@ -128,18 +131,38 @@ class CacheManager:
         if os.path.isfile(filepath):
             return filepath
 
-        try:
-            with _create_ydl(download=True, progress_hook=progress_hook) as ydl_dl:
-                ydl_dl.extract_info(
-                    entry["webpage_url"], download=True, extra_info=extra_info
-                )
-        except (DownloadError, ExtractorError):
-            logger.warning(
-                f"Failed to download '{entry['webpage_url']}'", exc_info=True
-            )
-            return None
+        for attempt in range(1, DOWNLOAD_ATTEMPTS + 1):
+            try:
+                with _create_ydl(download=True, progress_hook=progress_hook) as ydl_dl:
+                    ydl_dl.extract_info(
+                        entry["webpage_url"], download=True, extra_info=extra_info
+                    )
+                return filepath
+            except (DownloadError, ExtractorError):
+                if attempt == DOWNLOAD_ATTEMPTS:
+                    logger.warning(
+                        f"Failed to download '{entry['webpage_url']}'", exc_info=True
+                    )
+        return None
 
-        return filepath
+    def _download_new_entry(
+        self, ydl: yt_dlp.YoutubeDL, entry: dict[str, Any], extra_info: dict[str, Any]
+    ) -> dict[str, Any] | None:
+        """Downloads a new entry, extracting it again before a retry."""
+        url = entry.get("webpage_url") or entry.get("url")
+        for attempt in range(1, DOWNLOAD_ATTEMPTS + 1):
+            try:
+                if attempt > 1:
+                    # The download links of the first extraction may be the ones
+                    # YouTube rejected, so the retry gets fresh ones
+                    entry = ydl.extract_info(url, download=False, process=False)
+                return ydl.process_ie_result(
+                    entry, download=True, extra_info=extra_info
+                )
+            except (DownloadError, ExtractorError):
+                if attempt == DOWNLOAD_ATTEMPTS:
+                    logger.warning(f"Failed to download '{url}'", exc_info=True)
+        return None
 
     def _fetch_and_cache_new_songs(
         self, search: str, progress_hook: ProgressHook | None = None
@@ -160,16 +183,7 @@ class CacheManager:
             for index, entry in enumerate(entries, start=1):
                 # Lets the progress message show the (i/n) counter for playlists
                 extra_info = {"playlist_index": index, "n_entries": len(entries)}
-                try:
-                    result = ydl.process_ie_result(
-                        entry, download=True, extra_info=extra_info
-                    )
-                except (DownloadError, ExtractorError):
-                    logger.warning(
-                        f"Failed to download '{entry.get('url', search)}'",
-                        exc_info=True,
-                    )
-                    continue
+                result = self._download_new_entry(ydl, entry, extra_info)
                 if not result:
                     continue
 

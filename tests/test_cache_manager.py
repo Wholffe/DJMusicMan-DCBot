@@ -2,7 +2,7 @@ import json
 import os
 import tempfile
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 from yt_dlp.utils import (  # type: ignore[import-untyped]
     DownloadError,
@@ -228,9 +228,10 @@ class TestCacheManager(unittest.TestCase):
 
     def test_iter_songs_new_playlist_skips_failed_entry_and_caches_rest(self):
         manager = CacheManager()
-        self.ydl.extract_info.return_value = {
-            "entries": [self._entry("a"), self._entry("b"), self._entry("c")]
-        }
+        self.ydl.extract_info.side_effect = [
+            {"entries": [self._entry("a"), self._entry("b"), self._entry("c")]},
+            self._entry("b"),
+        ]
 
         def process(entry: dict, download: bool, extra_info: dict) -> dict:
             if entry["id"] == "b":
@@ -283,6 +284,158 @@ class TestCacheManager(unittest.TestCase):
         self.assertEqual(songs, [])
         self.assertEqual(manager.metadata_cache, {})
         self.assertFalse(os.path.exists(self.metadata_path))
+
+    def test_iter_songs_new_search_retries_failed_download_once(self):
+        manager = CacheManager()
+        self.ydl.extract_info.return_value = self._entry("a")
+        # YouTube sporadically answers with HTTP 403, a second attempt usually works
+        self.ydl.process_ie_result.side_effect = [
+            DownloadError("HTTP Error 403: Forbidden"),
+            self._entry("a"),
+        ]
+
+        songs = list(manager.iter_songs("new search"))
+
+        self.assertEqual(
+            songs, [{"url": self._song_path(self._entry("a")), "title": "title a"}]
+        )
+        self.assertEqual(
+            self.ydl.process_ie_result.call_args_list,
+            [call(self._entry("a"), download=True, extra_info=self._extra_info(1, 1))]
+            * 2,
+        )
+        self.assertEqual(
+            manager.metadata_cache, {"new search": {"entries": [self._entry("a")]}}
+        )
+
+    def test_iter_songs_new_search_download_failing_twice_gives_up(self):
+        manager = CacheManager()
+        self.ydl.extract_info.return_value = self._entry("a")
+        self.ydl.process_ie_result.side_effect = DownloadError("failed")
+
+        songs = list(manager.iter_songs("broken"))
+
+        self.assertEqual(songs, [])
+        self.assertEqual(self.ydl.process_ie_result.call_count, 2)
+        self.assertEqual(manager.metadata_cache, {})
+
+    def test_iter_songs_new_playlist_retries_only_failed_entry(self):
+        manager = CacheManager()
+        self.ydl.extract_info.side_effect = [
+            {"entries": [self._entry("a"), self._entry("b")]},
+            self._entry("b"),
+        ]
+        self.ydl.process_ie_result.side_effect = [
+            self._entry("a"),
+            DownloadError("HTTP Error 403: Forbidden"),
+            self._entry("b"),
+        ]
+
+        songs = list(manager.iter_songs("playlist"))
+
+        self.assertEqual([song["title"] for song in songs], ["title a", "title b"])
+        self.assertEqual(
+            [c.kwargs["extra_info"] for c in self.ydl.process_ie_result.call_args_list],
+            [self._extra_info(1, 2), self._extra_info(2, 2), self._extra_info(2, 2)],
+        )
+        self.assertEqual(
+            self.ydl.extract_info.call_args_list[1],
+            call(self._entry("b")["webpage_url"], download=False, process=False),
+        )
+
+    def test_iter_songs_new_video_retry_extracts_video_again(self):
+        manager = CacheManager()
+        url = self._entry("a")["webpage_url"]
+        stale = {**self._entry("a"), "formats": ["rejected link"]}
+        fresh = {**self._entry("a"), "formats": ["fresh link"]}
+        self.ydl.extract_info.side_effect = [stale, fresh]
+        self.ydl.process_ie_result.side_effect = [
+            DownloadError("HTTP Error 403: Forbidden"),
+            fresh,
+        ]
+
+        songs = list(manager.iter_songs(url))
+
+        self.assertEqual(
+            songs, [{"url": self._song_path(self._entry("a")), "title": "title a"}]
+        )
+        self.assertEqual(
+            self.ydl.extract_info.call_args_list,
+            [call(url, download=False, process=False)] * 2,
+        )
+        self.assertEqual(
+            self.ydl.process_ie_result.call_args_list,
+            [
+                call(stale, download=True, extra_info=self._extra_info(1, 1)),
+                call(fresh, download=True, extra_info=self._extra_info(1, 1)),
+            ],
+        )
+
+    def test_iter_songs_new_playlist_retry_extracts_flat_entry_again(self):
+        manager = CacheManager()
+        # Playlist entries are flat entries that only point to the video
+        flat_entry = {
+            "_type": "url",
+            "url": "https://www.youtube.com/watch?v=a",
+            "id": "a",
+        }
+        self.ydl.extract_info.side_effect = [
+            {"entries": [flat_entry]},
+            self._entry("a"),
+        ]
+        self.ydl.process_ie_result.side_effect = [
+            DownloadError("HTTP Error 403: Forbidden"),
+            self._entry("a"),
+        ]
+
+        songs = list(manager.iter_songs("playlist"))
+
+        self.assertEqual([song["title"] for song in songs], ["title a"])
+        self.assertEqual(
+            self.ydl.extract_info.call_args_list[1],
+            call(flat_entry["url"], download=False, process=False),
+        )
+        self.assertEqual(
+            self.ydl.process_ie_result.call_args_list[1],
+            call(self._entry("a"), download=True, extra_info=self._extra_info(1, 1)),
+        )
+
+    def test_iter_songs_new_search_retry_extracts_search_again(self):
+        manager = CacheManager()
+        # yt-dlp turns a search into a flat entry that points to the search results
+        self.ydl.extract_info.return_value = {
+            "_type": "url",
+            "url": "ytsearch:new search",
+            "webpage_url": "new search",
+        }
+        self.ydl.process_ie_result.side_effect = [
+            DownloadError("HTTP Error 403: Forbidden"),
+            {"entries": [self._entry("a")]},
+        ]
+
+        songs = list(manager.iter_songs("new search"))
+
+        self.assertEqual(
+            songs, [{"url": self._song_path(self._entry("a")), "title": "title a"}]
+        )
+        self.assertEqual(
+            self.ydl.extract_info.call_args_list,
+            [call("new search", download=False, process=False)] * 2,
+        )
+
+    def test_iter_songs_new_search_failed_extraction_on_retry_skips_song(self):
+        manager = CacheManager()
+        self.ydl.extract_info.side_effect = [
+            self._entry("a"),
+            ExtractorError("HTTP Error 403: Forbidden"),
+        ]
+        self.ydl.process_ie_result.side_effect = DownloadError("failed")
+
+        songs = list(manager.iter_songs("broken"))
+
+        self.assertEqual(songs, [])
+        self.ydl.process_ie_result.assert_called_once()
+        self.assertEqual(manager.metadata_cache, {})
 
     def _ydl_params(self) -> list[dict]:
         return [c.args[0] for c in self.mock_ydl_cls.call_args_list]
@@ -403,6 +556,29 @@ class TestCacheManager(unittest.TestCase):
         self.ydl.extract_info.side_effect = ExtractorError("failed")
 
         self.assertIsNone(manager._download_song_if_missing(self._entry("a")))
+
+    def test_download_song_if_missing_retries_failed_download_once(self):
+        manager = CacheManager()
+        # YouTube sporadically answers with HTTP 403, a second attempt usually works
+        self.ydl.extract_info.side_effect = [
+            DownloadError("HTTP Error 403: Forbidden"),
+            None,
+        ]
+
+        filepath = manager._download_song_if_missing(self._entry("a"))
+
+        self.assertEqual(filepath, self._song_path(self._entry("a")))
+        self.assertEqual(
+            self.ydl.extract_info.call_args_list,
+            [call(self._entry("a")["webpage_url"], download=True, extra_info=None)] * 2,
+        )
+
+    def test_download_song_if_missing_failing_twice_returns_none(self):
+        manager = CacheManager()
+        self.ydl.extract_info.side_effect = DownloadError("failed")
+
+        self.assertIsNone(manager._download_song_if_missing(self._entry("a")))
+        self.assertEqual(self.ydl.extract_info.call_count, 2)
 
     def test_iter_cached_entries_skips_entry_with_failed_download(self):
         manager = CacheManager()
