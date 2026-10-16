@@ -10,60 +10,49 @@ FOOTER: Final = f"{NAME} {VERSION}"
 PROGRESS_UPDATE_INTERVAL: Final = 2.0  # seconds between progress message edits
 
 # region Embeds
-HELP_COMMAND_WIDTH: Final = 21  # longest command plus two spaces
 
 
-def _command_list(commands: list[tuple[str, str]]) -> str:
-    """Formats commands as a code block, so the descriptions line up."""
-    lines = [f"{name.ljust(HELP_COMMAND_WIDTH)}{text}" for name, text in commands]
-    return "```\n" + "\n".join(lines) + "\n```"
+def _command_list(groups: dict[str, list[tuple[str, str]]]) -> str:
+    """Lists the commands under group headings, each with a small description below."""
+    lines = []
+    for group, commands in groups.items():
+        lines.append(f"### {group}")
+        for command, text in commands:
+            name, _, parameter = command.partition(" ")
+            lines.append(f"**{name}** {parameter}".rstrip())
+            lines.append(f"-# {text}")
+    return "\n".join(lines)
 
 
 EMBED_HELP = {
     "title": NAME,
     "description": (
         "All commands are available in the `/` menu. "
-        "`<search>` can be a YouTube link, a playlist or search terms."
-    ),
-    "fields": [
-        {
-            "name": "Playback",
-            "value": _command_list(
-                [
+        "`<search>` can be a YouTube link, a playlist or search terms.\n"
+        + _command_list(
+            {
+                "Playback": [
                     ("/play <search>", "Plays a song or playlist"),
                     ("/playfirst <search>", "Plays it before the queue"),
                     ("/pause", "Pauses or resumes playback"),
                     ("/skip", "Skips the current song"),
-                ]
-            ),
-            "inline": False,
-        },
-        {
-            "name": "Queue",
-            "value": _command_list(
-                [
+                ],
+                "Queue": [
                     ("/queue", "Shows the current queue"),
                     ("/shuffle", "Shuffles the queue"),
                     ("/clear", "Clears the queue"),
                     ("/loop", "Toggles looping"),
                     ("/remove <position>", "Removes a song"),
-                ]
-            ),
-            "inline": False,
-        },
-        {
-            "name": "Other",
-            "value": _command_list(
-                [
+                ],
+                "Other": [
                     ("/leave", "Leaves the voice channel"),
                     ("/clear_cache", "Clears the song cache"),
                     ("/ping", "Shows the latency"),
                     ("/restart", "Restarts the bot"),
-                ]
-            ),
-            "inline": False,
-        },
-    ],
+                ],
+            }
+        )
+    ),
     "footer": FOOTER,
 }
 EMBED_QUEUE = {

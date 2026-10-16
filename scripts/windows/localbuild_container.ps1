@@ -11,10 +11,12 @@ if (-not (Test-Path -Path $dataPath)) {
     New-Item -ItemType Directory -Path $dataPath
 }
 
+docker build --build-arg CACHE_BUST="$(Get-Date -UFormat %s)" -t $dockerImageName .
+if ($LASTEXITCODE -ne 0) { exit 1 }
+
 docker stop $dockerImageName 2>$null
 docker rm $dockerImageName 2>$null
 
-docker build --no-cache -t $dockerImageName .
 docker run -d `
     --name $dockerImageName `
     --env-file .env `

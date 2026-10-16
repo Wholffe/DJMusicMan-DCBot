@@ -1,0 +1,14 @@
+# Keep the build context small: only requirements.txt, main.py and music_bot/ are copied
+.git
+.github
+.dev
+.venv
+.env
+data
+docs
+scripts
+tests
+**/__pycache__
+.mypy_cache
+.pytest_cache
+.ruff_cache

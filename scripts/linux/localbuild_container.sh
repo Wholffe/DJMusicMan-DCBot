@@ -12,9 +12,9 @@ cd "$PROJECT_PATH" || exit 1
 mkdir -p "$DATA_PATH"
 chmod 777 "$DATA_PATH"
 
+docker build --build-arg CACHE_BUST="$(date +%s)" -t "$DOCKER_IMAGE_NAME" . || exit 1
 docker stop "$CONTAINER_NAME" || true
 docker rm "$CONTAINER_NAME" || true
-docker build --no-cache -t "$DOCKER_IMAGE_NAME" .
 docker run -d \
   --name "$CONTAINER_NAME" \
   --env-file .env \

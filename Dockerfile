@@ -13,10 +13,15 @@ RUN curl -fsSL https://deno.land/x/install/install.sh | sh
 
 RUN python -m pip install --upgrade pip
 
-COPY requirements.txt main.py ./
+COPY requirements.txt ./
+
+# A new CACHE_BUST value reinstalls the packages, so yt-dlp stays up to date
+ARG CACHE_BUST
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY main.py ./
 COPY music_bot/ ./music_bot/
 
-RUN pip install --no-cache-dir -r requirements.txt
 RUN mkdir /data
 
 VOLUME ["/data"]
