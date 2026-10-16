@@ -64,5 +64,11 @@ class TestGuildId(unittest.TestCase):
         self.assertEqual(config.GUILD_ID, 0)
 
 
+class TestYdlpOptions(unittest.TestCase):
+    def test_ydlp_options_disable_progress_output(self):
+        # The bot shows its own progress through progress_hooks instead of the log
+        self.assertIs(config.YDLP_OPTIONS.get("noprogress"), True)
+
+
 if __name__ == "__main__":
     unittest.main()

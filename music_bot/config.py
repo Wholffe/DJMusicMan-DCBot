@@ -29,6 +29,7 @@ YDLP_OPTIONS = {
     "noplaylist": True,
     "default_search": "ytsearch",
     "quiet": True,
+    "noprogress": True,
     "geo_bypass": True,
     "outtmpl": os.path.join(CACHE_DIR, "%(id)s.%(ext)s"),
 }
