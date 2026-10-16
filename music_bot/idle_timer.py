@@ -25,7 +25,7 @@ class IdleTimer:
 
         while ctx.voice_client and (self.current_timer < self.MAX_DURATION_TIMEOUT):
             if ctx.voice_client.is_playing():
-                self.clear_timer_task()
+                self.timer_task = None
                 return
             self.current_timer += 1
             await asyncio.sleep(1)
@@ -33,7 +33,10 @@ class IdleTimer:
         if ctx.voice_client:
             await ctx.voice_client.disconnect()
             await self.message_handler.send_info(ctx, CONST.MESSAGE_NO_ACTIVITY_TIMEOUT)
-        self.clear_timer_task()
+        self.timer_task = None
 
     def clear_timer_task(self) -> None:
+        """Stops the running idle timer, if any."""
+        if self.timer_task:
+            self.timer_task.cancel()
         self.timer_task = None

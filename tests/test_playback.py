@@ -574,6 +574,44 @@ class TestPlayback(unittest.IsolatedAsyncioTestCase):
             self.ctx, musicbot.queue, musicbot.client, "search", False
         )
 
+    def _musicbot(self) -> MagicMock:
+        musicbot = MagicMock()
+        musicbot.queue = self.queue
+        musicbot.client = self.client
+        return musicbot
+
+    @patch.object(services.idle_timer, "timer_task", None)
+    @patch.object(services.idle_timer, "MAX_DURATION_TIMEOUT", 0)
+    @patch("music_bot.playback.play_song", new_callable=AsyncMock)
+    @patch("music_bot.playback.join_voice_channel", new_callable=AsyncMock)
+    @patch("music_bot.playback.iter_song_infos")
+    async def test_queue_and_play_running_idle_timer_does_not_stop_loading(
+        self, mock_iter_song_infos, mock_join_voice_channel, mock_play_song
+    ):
+        self.ctx.voice_client.is_playing.return_value = False
+        voice_client = self.ctx.voice_client
+
+        async def disconnect():
+            self.ctx.voice_client = None
+
+        voice_client.disconnect.side_effect = disconnect
+        mock_join_voice_channel.return_value = True
+        mock_play_song.side_effect = self._start_playing
+        # The bot was idle before /play, its timer runs out on its next turn
+        await services.idle_timer.handle_idle(self.ctx)
+
+        async def iter_song_infos(search, progress_hook):
+            await asyncio.sleep(0)  # downloading a long video takes a while
+            yield _song(1)
+
+        mock_iter_song_infos.side_effect = iter_song_infos
+
+        await queue_and_play(self._musicbot(), self.ctx, "song", add_to_front=False)
+
+        voice_client.disconnect.assert_not_called()
+        mock_play_song.assert_awaited_once()
+        self.assertEqual(self._sent_embed().description, "Added to the queue: title1")
+
     @patch("music_bot.playback._add_songs_to_queue", new_callable=AsyncMock)
     @patch("music_bot.playback.join_voice_channel", new_callable=AsyncMock)
     async def test_queue_and_play_defers_when_join_fails(

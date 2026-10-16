@@ -97,6 +97,8 @@ async def queue_and_play(musicbot, ctx, search: str, add_to_front: bool) -> None
     await ctx.defer()
     if not await join_voice_channel(musicbot, ctx):
         return
+    # Otherwise an old idle timer disconnects the bot while a long video downloads
+    idle_timer.clear_timer_task()
     await _add_songs_to_queue(
         ctx, musicbot.queue, musicbot.client, search, add_to_front
     )

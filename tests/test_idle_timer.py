@@ -1,3 +1,4 @@
+import asyncio
 import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -31,6 +32,18 @@ class TestIdleTimer(unittest.IsolatedAsyncioTestCase):
         embed = self.ctx.send.call_args[1]["embed"]
         self.assertEqual(embed.description, CONST.MESSAGE_QUEUE_EMPTY_USE_PLAY)
 
+    async def test_handle_idle_timer_runs_out_and_disconnects(self):
+        self.idle_timer.MAX_DURATION_TIMEOUT = 0
+        await self.idle_timer.handle_idle(self.ctx)
+        task = self.idle_timer.timer_task
+
+        await task  # fails if the timer cancels itself
+
+        self.ctx.voice_client.disconnect.assert_called_once()
+        embed = self.ctx.send.call_args[1]["embed"]
+        self.assertEqual(embed.description, CONST.MESSAGE_NO_ACTIVITY_TIMEOUT)
+        self.assertIsNone(self.idle_timer.timer_task)
+
     def test_init_reads_timeout_from_config(self):
         self.assertEqual(
             self.idle_timer.MAX_DURATION_TIMEOUT, IDLE_TIMER["max_duration_timeout"]
@@ -42,6 +55,36 @@ class TestIdleTimer(unittest.IsolatedAsyncioTestCase):
         self.idle_timer.clear_timer_task()
 
         self.assertIsNone(self.idle_timer.timer_task)
+
+    async def test_clear_timer_task_without_task_does_nothing(self):
+        self.idle_timer.clear_timer_task()
+
+        self.assertIsNone(self.idle_timer.timer_task)
+
+    async def test_clear_timer_task_cancels_running_timer(self):
+        self.idle_timer.MAX_DURATION_TIMEOUT = 3
+        self.ctx.voice_client.is_playing.return_value = False
+        await self.idle_timer.handle_idle(self.ctx)
+        task = self.idle_timer.timer_task
+        await asyncio.sleep(0)  # lets the timer start counting
+
+        self.idle_timer.clear_timer_task()
+        await asyncio.sleep(0)  # lets the cancellation reach the timer
+
+        self.assertTrue(task.cancelled())
+        self.assertIsNone(self.idle_timer.timer_task)
+
+    async def test_clear_timer_task_stopped_timer_does_not_disconnect(self):
+        # The timer runs out as soon as it gets its first turn
+        self.idle_timer.MAX_DURATION_TIMEOUT = 0
+        await self.idle_timer.handle_idle(self.ctx)
+
+        self.idle_timer.clear_timer_task()
+        await asyncio.sleep(0)  # gives a still running timer its turn
+
+        self.ctx.voice_client.disconnect.assert_not_called()
+        embed = self.ctx.send.call_args[1]["embed"]
+        self.assertEqual(embed.description, CONST.MESSAGE_QUEUE_EMPTY_USE_PLAY)
 
     @patch("music_bot.idle_timer.asyncio.sleep", new_callable=AsyncMock)
     async def test_start_idle_timer_without_voice_client_does_nothing(self, mock_sleep):
