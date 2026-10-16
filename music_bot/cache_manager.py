@@ -167,19 +167,26 @@ class CacheManager:
         return None
 
     def _download_new_entry(
-        self, ydl: yt_dlp.YoutubeDL, entry: dict[str, Any], extra_info: dict[str, Any]
+        self,
+        ydl: yt_dlp.YoutubeDL,
+        entry: dict[str, Any],
+        extra_info: dict[str, Any],
+        progress_hook: ProgressHook | None = None,
     ) -> dict[str, Any] | None:
-        """Downloads a new entry, extracting it again before a retry."""
+        """Downloads a new entry, retrying in a new YoutubeDL session."""
         url = entry.get("webpage_url") or entry.get("url")
         for attempt in range(1, DOWNLOAD_ATTEMPTS + 1):
             try:
-                if attempt > 1:
-                    # The download links of the first extraction may be the ones
-                    # YouTube rejected, so the retry gets fresh ones
-                    entry = ydl.extract_info(url, download=False, process=False)
-                return ydl.process_ie_result(
-                    entry, download=True, extra_info=extra_info
-                )
+                if attempt == 1:
+                    return ydl.process_ie_result(
+                        entry, download=True, extra_info=extra_info
+                    )
+                # After an HTTP 403 YouTube rejects the whole session of the
+                # instance, so the retry extracts and downloads in a new one
+                with _create_ydl(download=True, progress_hook=progress_hook) as new_ydl:
+                    return new_ydl.extract_info(
+                        url, download=True, extra_info=extra_info
+                    )
             except (DownloadError, ExtractorError) as error:
                 _report_failed_attempt(url, attempt, error)
         return None
@@ -204,7 +211,9 @@ class CacheManager:
                 # Lets the progress message show the (i/n) counter for playlists
                 extra_info = {"playlist_index": index, "n_entries": len(entries)}
                 with self._download_lock(entry):
-                    result = self._download_new_entry(ydl, entry, extra_info)
+                    result = self._download_new_entry(
+                        ydl, entry, extra_info, progress_hook
+                    )
                 if not result:
                     continue
 
