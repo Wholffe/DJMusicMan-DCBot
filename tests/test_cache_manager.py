@@ -1,7 +1,11 @@
 import json
 import os
 import tempfile
+import threading
 import unittest
+from collections.abc import Callable
+from functools import partial
+from typing import Any
 from unittest.mock import MagicMock, call, patch
 
 from yt_dlp.utils import (  # type: ignore[import-untyped]
@@ -11,6 +15,33 @@ from yt_dlp.utils import (  # type: ignore[import-untyped]
 
 from music_bot.cache_manager import CacheManager, _create_ydl
 from music_bot.config import YDLP_OPTIONS
+
+# Upper bound for joining download threads, so a deadlock fails instead of hanging
+THREAD_TIMEOUT = 5.0
+# How long the first fake download waits for a second one to start alongside it
+OVERLAP_WAIT = 0.3
+
+
+class BlockingDownload:
+    """Fake yt-dlp download that holds the first call to detect overlapping calls."""
+
+    def __init__(self) -> None:
+        self.lock = threading.Lock()
+        self.calls = 0
+        self.other_started = threading.Event()
+        self.overlapped = False
+
+    def __call__(self, entry: Any, **kwargs: Any) -> Any:
+        with self.lock:
+            self.calls += 1
+            is_first = self.calls == 1
+        if not is_first:
+            self.other_started.set()
+            return entry
+        # An unblocked second download starts within this wait. A blocked one
+        # cannot, so the wait runs out and the result does not depend on timing.
+        self.overlapped = self.other_started.wait(OVERLAP_WAIT)
+        return entry
 
 
 class TestCacheManager(unittest.TestCase):
@@ -579,6 +610,193 @@ class TestCacheManager(unittest.TestCase):
 
         self.assertIsNone(manager._download_song_if_missing(self._entry("a")))
         self.assertEqual(self.ydl.extract_info.call_count, 2)
+
+    def _run_in_threads(self, *downloads: Callable[[], Any]) -> list[Any]:
+        """Runs the downloads in parallel threads and returns their results."""
+        results: list[Any] = [None] * len(downloads)
+
+        def run(index: int, download: Callable[[], Any]) -> None:
+            results[index] = download()
+
+        # Daemon threads, so a deadlock fails the test instead of hanging the run
+        threads = [
+            threading.Thread(target=run, args=(index, download), daemon=True)
+            for index, download in enumerate(downloads)
+        ]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join(THREAD_TIMEOUT)
+            self.assertFalse(thread.is_alive())
+        return results
+
+    @staticmethod
+    def _search_entry(search: str) -> dict:
+        # Search results have no id until yt-dlp resolves them
+        return {"_type": "url", "url": f"ytsearch:{search}"}
+
+    def _song(self, song_id: str) -> dict:
+        path = self._song_path(self._entry(song_id))
+        return {"url": path, "title": f"title {song_id}"}
+
+    def _new_songs(self, manager: CacheManager, search: str) -> Callable[[], Any]:
+        """Returns a call that fetches all songs of a new search."""
+        return partial(list, manager._fetch_and_cache_new_songs(search))
+
+    def _cached_songs(self, manager: CacheManager, song_id: str) -> Callable[[], Any]:
+        """Returns a call that gets the song of a cached entry."""
+        return partial(list, manager._iter_cached_entries([self._entry(song_id)]))
+
+    def test_fetch_and_cache_new_songs_same_video_waits_for_running_download(self):
+        manager = CacheManager()
+        downloads = BlockingDownload()
+        self.ydl.process_ie_result.side_effect = downloads
+        self.ydl.extract_info.return_value = self._entry("a")
+
+        results = self._run_in_threads(
+            self._new_songs(manager, "a"), self._new_songs(manager, "a")
+        )
+
+        self.assertFalse(downloads.overlapped)
+        self.assertEqual(results, [[self._song("a")], [self._song("a")]])
+
+    def test_fetch_and_cache_new_songs_same_search_waits_for_running_download(self):
+        manager = CacheManager()
+        downloads = BlockingDownload()
+        self.ydl.extract_info.side_effect = [
+            self._search_entry("song"),
+            self._search_entry("song"),
+        ]
+        # A search resolves to a playlist with the found video
+        self.ydl.process_ie_result.side_effect = lambda entry, **kwargs: {
+            "entries": [downloads(self._entry("a"))]
+        }
+
+        results = self._run_in_threads(
+            self._new_songs(manager, "song"), self._new_songs(manager, "song")
+        )
+
+        self.assertFalse(downloads.overlapped)
+        self.assertEqual(results, [[self._song("a")], [self._song("a")]])
+
+    def test_iter_cached_entries_waits_for_new_download_of_same_video(self):
+        manager = CacheManager()
+        downloads = BlockingDownload()
+        self.ydl.process_ie_result.side_effect = downloads
+
+        def extract_info(url: str, download: bool, **kwargs: Any) -> Any:
+            # The new search only extracts here, the cached entry downloads
+            return downloads(url) if download else self._entry("a")
+
+        self.ydl.extract_info.side_effect = extract_info
+
+        results = self._run_in_threads(
+            self._new_songs(manager, "a"), self._cached_songs(manager, "a")
+        )
+
+        self.assertFalse(downloads.overlapped)
+        self.assertEqual(results, [[self._song("a")], [self._song("a")]])
+
+    def test_iter_cached_entries_waiting_call_uses_finished_file(self):
+        manager = CacheManager()
+        downloads = BlockingDownload()
+
+        def extract_info(url: str, **kwargs: Any) -> None:
+            downloads(url)
+            self._write_song_file("a")
+
+        self.ydl.extract_info.side_effect = extract_info
+
+        results = self._run_in_threads(
+            self._cached_songs(manager, "a"), self._cached_songs(manager, "a")
+        )
+
+        self.assertFalse(downloads.overlapped)
+        self.ydl.extract_info.assert_called_once()
+        self.assertEqual(results, [[self._song("a")], [self._song("a")]])
+
+    def test_fetch_and_cache_new_songs_different_videos_run_in_parallel(self):
+        manager = CacheManager()
+        downloads = BlockingDownload()
+        self.ydl.process_ie_result.side_effect = downloads
+        # The searches are the ids of the found videos
+        self.ydl.extract_info.side_effect = lambda search, **kwargs: self._entry(search)
+
+        results = self._run_in_threads(
+            self._new_songs(manager, "a"), self._new_songs(manager, "b")
+        )
+
+        self.assertTrue(downloads.overlapped)
+        self.assertEqual(results, [[self._song("a")], [self._song("b")]])
+
+    def test_fetch_and_cache_new_songs_different_searches_run_in_parallel(self):
+        manager = CacheManager()
+        downloads = BlockingDownload()
+
+        def extract_info(search: str, **kwargs: Any) -> dict:
+            return self._search_entry(search)
+
+        self.ydl.extract_info.side_effect = extract_info
+        # A search resolves to a playlist with the found video
+        found = {
+            "ytsearch:first": self._entry("a"),
+            "ytsearch:second": self._entry("b"),
+        }
+        self.ydl.process_ie_result.side_effect = lambda entry, **kwargs: {
+            "entries": [downloads(found[entry["url"]])]
+        }
+
+        results = self._run_in_threads(
+            self._new_songs(manager, "first"), self._new_songs(manager, "second")
+        )
+
+        self.assertTrue(downloads.overlapped)
+        self.assertEqual(results, [[self._song("a")], [self._song("b")]])
+
+    def test_fetch_and_cache_new_songs_failed_download_releases_video_lock(self):
+        manager = CacheManager()
+        self.ydl.extract_info.return_value = self._entry("a")
+        self.ydl.process_ie_result.side_effect = [
+            DownloadError("failed"),
+            DownloadError("failed"),
+            self._entry("a"),
+        ]
+        list(manager._fetch_and_cache_new_songs("a"))
+
+        results = self._run_in_threads(self._new_songs(manager, "a"))
+
+        self.assertEqual(results, [[self._song("a")]])
+
+    def test_iter_cached_entries_unexpected_error_releases_video_lock(self):
+        manager = CacheManager()
+        self.ydl.extract_info.side_effect = [RuntimeError("boom"), None]
+        with self.assertRaises(RuntimeError):
+            list(manager._iter_cached_entries([self._entry("a")]))
+
+        results = self._run_in_threads(self._cached_songs(manager, "a"))
+
+        self.assertEqual(results, [[self._song("a")]])
+
+    def test_fetch_and_cache_new_songs_releases_video_lock_before_yield(self):
+        manager = CacheManager()
+        self.ydl.extract_info.return_value = self._entry("a")
+        songs = manager._fetch_and_cache_new_songs("a")
+        next(songs)
+
+        # Times out if the paused generator still holds the lock of the video
+        results = self._run_in_threads(self._cached_songs(manager, "a"))
+
+        self.assertEqual(results, [[self._song("a")]])
+
+    def test_iter_cached_entries_releases_video_lock_before_yield(self):
+        manager = CacheManager()
+        songs = manager._iter_cached_entries([self._entry("a")])
+        next(songs)
+
+        # Times out if the paused generator still holds the lock of the video
+        results = self._run_in_threads(self._cached_songs(manager, "a"))
+
+        self.assertEqual(results, [[self._song("a")]])
 
     def test_iter_cached_entries_skips_entry_with_failed_download(self):
         manager = CacheManager()

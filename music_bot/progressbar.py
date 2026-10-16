@@ -53,21 +53,19 @@ class DownloadProgress:
 
     def _handle(self, status: dict[str, Any]) -> None:
         """Throttles a progress event and schedules the message update."""
-        finished = status["status"] == "finished"
-        if not finished and status["status"] != "downloading":
+        # No 100% bar, as finish() replaces it right after: Discord sometimes kept
+        # two quick edits of one message out of order and showed the bar instead
+        if status["status"] != "downloading":
             return
 
         info = status["info_dict"]
         title = info.get("title", "Unknown Title")
         key = info.get("id", title)
         new_song = key != self.song_key
-        if finished and new_song:
-            return  # file was already cached, nothing was downloaded
 
         now = time.monotonic()
         if (
-            not finished
-            and not new_song
+            not new_song
             and self.last_update is not None
             and now - self.last_update < CONST.PROGRESS_UPDATE_INTERVAL
         ):
@@ -77,10 +75,9 @@ class DownloadProgress:
 
         total = status.get("total_bytes") or status.get("total_bytes_estimate")
         downloaded = status.get("downloaded_bytes", 0)
-        if finished:
-            # yt-dlp reports the final size as total_bytes when a download ends
-            total = total or downloaded
-            downloaded = total
+        # yt-dlp reports the last block as "downloading" too
+        if total and downloaded >= total:
+            return
 
         index = info.get("playlist_index")
         count = info.get("n_entries") or info.get("playlist_count")

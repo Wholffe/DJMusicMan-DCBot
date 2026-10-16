@@ -4,7 +4,7 @@ import logging
 import unittest
 from collections.abc import Coroutine
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, call, patch
 
 import discord
 from discord.ext import commands
@@ -173,37 +173,45 @@ class TestDownloadProgress(unittest.IsolatedAsyncioTestCase):
             self.ctx, self._text("Song", MB, 4 * MB)
         )
 
-    async def test_finished_bypasses_throttle_and_shows_complete(self):
+    async def test_finished_after_downloading_does_not_edit_message(self):
+        await self._emit(self._status(), now=100.0)
+
+        # Outside the throttle interval, so only the status can prevent an edit
+        await self._emit(
+            self._status("finished", downloaded=4 * MB),
+            now=100.0 + CONST.PROGRESS_UPDATE_INTERVAL,
+        )
+
+        self.message_handler.send_progress.assert_awaited_once()
+        self.message_handler.edit_progress.assert_not_called()
+
+    async def test_complete_downloading_event_does_not_edit_message(self):
+        await self._emit(self._status(), now=100.0)
+
+        # yt-dlp sends the last block as "downloading" right before "finished"
+        await self._emit(
+            self._status(downloaded=4 * MB),
+            now=100.0 + CONST.PROGRESS_UPDATE_INTERVAL,
+        )
+
+        self.message_handler.send_progress.assert_awaited_once()
+        self.message_handler.edit_progress.assert_not_called()
+
+    async def test_finish_after_finished_is_next_and_last_edit(self):
+        # Two edits of the same message in quick succession made Discord keep
+        # showing the 100% bar instead of the final message
         await self._emit(self._status(), now=100.0)
         sent = self.progress.message
-
         await self._emit(self._status("finished", downloaded=4 * MB), now=100.1)
 
-        self.message_handler.edit_progress.assert_awaited_once_with(
-            sent, self._text("Song", 4 * MB, 4 * MB)
-        )
-        self.assertIn("100%", self.message_handler.edit_progress.call_args[0][1])
+        await self.progress.finish("Added", success=True)
 
-    async def test_finished_without_downloaded_bytes_shows_complete(self):
-        await self._emit(self._status(), now=100.0)
-        sent = self.progress.message
-
-        await self._emit(self._status("finished", downloaded=None), now=100.1)
-
-        self.message_handler.edit_progress.assert_awaited_once_with(
-            sent, self._text("Song", 4 * MB, 4 * MB)
-        )
-
-    async def test_finished_without_total_uses_downloaded_bytes(self):
-        await self._emit(self._status(total=None), now=100.0)
-        sent = self.progress.message
-
-        await self._emit(
-            self._status("finished", downloaded=3 * MB, total=None), now=100.1
-        )
-
-        self.message_handler.edit_progress.assert_awaited_once_with(
-            sent, self._text("Song", 3 * MB, 3 * MB)
+        self.assertEqual(
+            self.message_handler.mock_calls,
+            [
+                call.send_progress(self.ctx, self._text("Song", MB, 4 * MB)),
+                call.edit_success(sent, "Added"),
+            ],
         )
 
     async def test_other_status_is_ignored(self):
@@ -229,14 +237,14 @@ class TestDownloadProgress(unittest.IsolatedAsyncioTestCase):
 
     async def test_new_title_right_after_finished_is_shown(self):
         await self._emit(self._status(title="First"), now=100.0)
+        sent = self.progress.message
         await self._emit(self._status("finished", title="First"), now=100.0)
 
         await self._emit(self._status(title="Second"), now=100.0)
 
         self.message_handler.send_progress.assert_awaited_once()
-        self.assertEqual(
-            self.message_handler.edit_progress.call_args[0][1],
-            self._text("Second", MB, 4 * MB),
+        self.message_handler.edit_progress.assert_awaited_once_with(
+            sent, self._text("Second", MB, 4 * MB)
         )
 
     async def test_missing_title_uses_unknown_title(self):
@@ -265,14 +273,15 @@ class TestDownloadProgress(unittest.IsolatedAsyncioTestCase):
 
     async def test_id_is_used_as_key_for_followup_events(self):
         await self._emit(self._status(song_id="id1"), now=100.0)
-        sent = self.progress.message
 
-        await self._emit(self._status("finished", song_id="id1"), now=100.1)
+        await self._emit(
+            self._status(downloaded=2 * MB, song_id="id1"),
+            now=100.0 + CONST.PROGRESS_UPDATE_INTERVAL / 2,
+        )
 
         self.message_handler.send_progress.assert_awaited_once()
-        self.message_handler.edit_progress.assert_awaited_once_with(
-            sent, self._text("Song", 4 * MB, 4 * MB)
-        )
+        self.message_handler.edit_progress.assert_not_called()
+        self.assertEqual(self.progress.song_key, "id1")
 
     async def test_call_scheduling_error_logs_warning_and_does_not_raise(self):
         def fail(coro, loop):
@@ -483,7 +492,8 @@ class TestDownloadProgress(unittest.IsolatedAsyncioTestCase):
         sent = self.progress.message
 
         # Schedule an update without yielding, so it can only run after finish
-        self.progress(self._status("finished", downloaded=4 * MB))
+        self.mock_time.monotonic.return_value = 100.0 + CONST.PROGRESS_UPDATE_INTERVAL
+        self.progress(self._status(downloaded=2 * MB))
         self.assertEqual(len(self.futures), 2)
         self.assertFalse(self.futures[1].done())
         await self.progress.finish("Added", success=True)

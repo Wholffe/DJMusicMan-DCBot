@@ -45,6 +45,10 @@ class CacheManager:
         # Songs are fetched in executor threads, so cache changes and saving must
         # not interleave
         self.lock = threading.Lock()
+        # Concurrent downloads of the same video wrote to the same .part file and
+        # corrupted it. Keyed by video id, or by search text for searches without
+        # an id, so a search and a link to the same video do not share a lock
+        self.download_locks: dict[str, threading.Lock] = {}
         self._initialize_cache()
 
     def _initialize_cache(self) -> None:
@@ -101,6 +105,12 @@ class CacheManager:
 
         self._save_metadata()
 
+    def _download_lock(self, entry: dict[str, Any]) -> threading.Lock:
+        """Returns the download lock for an entry's video id or search text."""
+        key = entry.get("id") or entry.get("url")
+        with self.lock:
+            return self.download_locks.setdefault(key, threading.Lock())
+
     def _iter_cached_entries(
         self,
         entries: list[dict[str, Any]],
@@ -111,7 +121,10 @@ class CacheManager:
         for index, entry in enumerate(entries, start=1):
             # Lets the progress message show the (i/n) counter for playlists
             extra_info = {"playlist_index": index, "n_entries": len(entries)}
-            filepath = self._download_song_if_missing(entry, progress_hook, extra_info)
+            with self._download_lock(entry):
+                filepath = self._download_song_if_missing(
+                    entry, progress_hook, extra_info
+                )
             if filepath:
                 yield {
                     "url": filepath,
@@ -183,7 +196,8 @@ class CacheManager:
             for index, entry in enumerate(entries, start=1):
                 # Lets the progress message show the (i/n) counter for playlists
                 extra_info = {"playlist_index": index, "n_entries": len(entries)}
-                result = self._download_new_entry(ydl, entry, extra_info)
+                with self._download_lock(entry):
+                    result = self._download_new_entry(ydl, entry, extra_info)
                 if not result:
                     continue
 
