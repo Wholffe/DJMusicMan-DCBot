@@ -224,9 +224,8 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(embed.description, "ping: 123ms")
 
     async def test_help_lists_every_command_except_help(self):
-        listed = set(
-            re.findall(r"^\*\*/(\w+)", CONST.EMBED_HELP["description"], re.MULTILINE)
-        )
+        help_text = "\n".join(field["value"] for field in CONST.EMBED_HELP["fields"])
+        listed = set(re.findall(r"^`/(\w+)", help_text, re.MULTILINE))
         registered = {command.name for command in self.bot.tree.get_commands()}
 
         self.assertEqual(listed, registered - {"help"})
@@ -239,7 +238,7 @@ class TestMusicBot(unittest.IsolatedAsyncioTestCase):
         embed = self.ctx.send.call_args[1]["embed"]
         self.assertEqual(embed.title, CONST.NAME)
         self.assertEqual(
-            re.findall(r"^### (\w+)", embed.description, re.MULTILINE),
+            [field.name for field in embed.fields],
             ["Playback", "Queue", "Other"],
         )
 
