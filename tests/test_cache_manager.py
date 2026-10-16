@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import tempfile
 import threading
@@ -13,6 +14,7 @@ from yt_dlp.utils import (  # type: ignore[import-untyped]
     ExtractorError,
 )
 
+from music_bot import cache_manager
 from music_bot.cache_manager import CacheManager, _create_ydl
 from music_bot.config import YDLP_OPTIONS
 
@@ -73,6 +75,16 @@ class TestCacheManager(unittest.TestCase):
             **entry,
             "duration": 1,
         }
+
+        # cache_manager calls time.sleep through the module, so this skips the real
+        # pause before a retry, also in the download threads
+        sleep_patcher = patch("time.sleep")
+        self.sleep = sleep_patcher.start()
+        self.addCleanup(sleep_patcher.stop)
+
+        logger = logging.getLogger("MusicBot")
+        self.addCleanup(logger.setLevel, logger.level)
+        logger.setLevel(logging.CRITICAL + 1)
 
         self.metadata_path = os.path.join(self.cache_dir, "metadata_cache.json")
 
@@ -154,6 +166,14 @@ class TestCacheManager(unittest.TestCase):
 
     def _extra_info(self, index: int, count: int) -> dict:
         return {"playlist_index": index, "n_entries": count}
+
+    def _assert_log_line(self, record: logging.LogRecord, *texts: str) -> None:
+        """Asserts a single log line without traceback that contains the texts."""
+        message = record.getMessage()
+        self.assertIsNone(record.exc_info)
+        self.assertNotIn("\n", message)
+        for text in texts:
+            self.assertIn(text, message)
 
     def test_iter_songs_cached_with_existing_file_does_not_download(self):
         self._write_metadata({"search": self._entry("a")})
@@ -339,7 +359,7 @@ class TestCacheManager(unittest.TestCase):
             manager.metadata_cache, {"new search": {"entries": [self._entry("a")]}}
         )
 
-    def test_iter_songs_new_search_download_failing_twice_gives_up(self):
+    def test_iter_songs_new_search_download_failing_all_attempts_gives_up(self):
         manager = CacheManager()
         self.ydl.extract_info.return_value = self._entry("a")
         self.ydl.process_ie_result.side_effect = DownloadError("failed")
@@ -347,8 +367,91 @@ class TestCacheManager(unittest.TestCase):
         songs = list(manager.iter_songs("broken"))
 
         self.assertEqual(songs, [])
-        self.assertEqual(self.ydl.process_ie_result.call_count, 2)
+        self.assertEqual(
+            self.ydl.process_ie_result.call_count, cache_manager.DOWNLOAD_ATTEMPTS
+        )
         self.assertEqual(manager.metadata_cache, {})
+
+    def test_iter_songs_new_search_failed_download_pauses_before_retry(self):
+        manager = CacheManager()
+        self.ydl.extract_info.return_value = self._entry("a")
+        # An immediate retry often got HTTP 403 again, so it waits first
+        self.ydl.process_ie_result.side_effect = [
+            DownloadError("HTTP Error 403: Forbidden"),
+            self._entry("a"),
+        ]
+
+        songs = list(manager.iter_songs("new search"))
+
+        self.assertEqual([song["title"] for song in songs], ["title a"])
+        self.assertEqual(
+            self.sleep.call_args_list, [call(cache_manager.DOWNLOAD_RETRY_DELAY)]
+        )
+
+    def test_iter_songs_new_search_failing_download_pauses_between_attempts(self):
+        manager = CacheManager()
+        self.ydl.extract_info.return_value = self._entry("a")
+        events: list[str] = []
+
+        def fail_download(entry: dict, download: bool, extra_info: dict) -> None:
+            events.append("download")
+            raise DownloadError("HTTP Error 403: Forbidden")
+
+        self.ydl.process_ie_result.side_effect = fail_download
+        self.sleep.side_effect = lambda seconds: events.append("sleep")
+
+        list(manager.iter_songs("broken"))
+
+        # No pause before the first attempt and none after the last one
+        self.assertEqual(
+            events,
+            ["download"]
+            + ["sleep", "download"] * (cache_manager.DOWNLOAD_ATTEMPTS - 1),
+        )
+        self.assertEqual(
+            self.sleep.call_args_list,
+            [call(cache_manager.DOWNLOAD_RETRY_DELAY)]
+            * (cache_manager.DOWNLOAD_ATTEMPTS - 1),
+        )
+
+    def test_iter_songs_new_search_successful_download_does_not_pause(self):
+        manager = CacheManager()
+        self.ydl.extract_info.return_value = self._entry("a")
+
+        list(manager.iter_songs("new search"))
+
+        self.sleep.assert_not_called()
+
+    def test_iter_songs_new_search_failed_download_logs_one_line_with_reason(self):
+        manager = CacheManager()
+        url = self._entry("a")["webpage_url"]
+        self.ydl.extract_info.return_value = self._entry("a")
+        self.ydl.process_ie_result.side_effect = DownloadError(
+            "HTTP Error 403: Forbidden"
+        )
+
+        with self.assertLogs("MusicBot", level=logging.WARNING) as logs:
+            list(manager.iter_songs("new search"))
+
+        self.assertEqual(len(logs.records), 1)
+        self._assert_log_line(logs.records[0], url, "HTTP Error 403: Forbidden")
+
+    def test_iter_songs_new_search_retry_logs_info_line_with_reason(self):
+        manager = CacheManager()
+        url = self._entry("a")["webpage_url"]
+        self.ydl.extract_info.return_value = self._entry("a")
+        self.ydl.process_ie_result.side_effect = [
+            DownloadError("HTTP Error 403: Forbidden"),
+            self._entry("a"),
+        ]
+
+        with self.assertLogs("MusicBot", level=logging.INFO) as logs:
+            list(manager.iter_songs("new search"))
+
+        # A retry that works logs no warning
+        self.assertEqual(len(logs.records), 1)
+        self.assertEqual(logs.records[0].levelno, logging.INFO)
+        self._assert_log_line(logs.records[0], url, "HTTP Error 403: Forbidden")
 
     def test_iter_songs_new_playlist_retries_only_failed_entry(self):
         manager = CacheManager()
@@ -538,6 +641,18 @@ class TestCacheManager(unittest.TestCase):
         self.ydl.process_ie_result.assert_not_called()
         self.assertEqual(manager.metadata_cache, {})
 
+    def test_iter_songs_fetch_error_logs_one_line_with_reason(self):
+        manager = CacheManager()
+        self.ydl.extract_info.side_effect = DownloadError("HTTP Error 403: Forbidden")
+
+        with self.assertLogs("MusicBot", level=logging.WARNING) as logs:
+            list(manager.iter_songs("broken search"))
+
+        self.assertEqual(len(logs.records), 1)
+        self._assert_log_line(
+            logs.records[0], "broken search", "HTTP Error 403: Forbidden"
+        )
+
     def test_iter_cached_entries_skips_empty_and_defaults_title(self):
         manager = CacheManager()
         entry = {"id": "a", "webpage_url": "https://www.youtube.com/watch?v=a"}
@@ -604,12 +719,87 @@ class TestCacheManager(unittest.TestCase):
             [call(self._entry("a")["webpage_url"], download=True, extra_info=None)] * 2,
         )
 
-    def test_download_song_if_missing_failing_twice_returns_none(self):
+    def test_download_song_if_missing_failing_all_attempts_returns_none(self):
         manager = CacheManager()
         self.ydl.extract_info.side_effect = DownloadError("failed")
 
         self.assertIsNone(manager._download_song_if_missing(self._entry("a")))
-        self.assertEqual(self.ydl.extract_info.call_count, 2)
+        self.assertEqual(
+            self.ydl.extract_info.call_count, cache_manager.DOWNLOAD_ATTEMPTS
+        )
+
+    def test_download_song_if_missing_failed_download_pauses_before_retry(self):
+        manager = CacheManager()
+        self.ydl.extract_info.side_effect = [
+            DownloadError("HTTP Error 403: Forbidden"),
+            None,
+        ]
+
+        filepath = manager._download_song_if_missing(self._entry("a"))
+
+        self.assertEqual(filepath, self._song_path(self._entry("a")))
+        self.assertEqual(
+            self.sleep.call_args_list, [call(cache_manager.DOWNLOAD_RETRY_DELAY)]
+        )
+
+    def test_download_song_if_missing_failing_pauses_between_attempts(self):
+        manager = CacheManager()
+        events: list[str] = []
+
+        def fail_download(url: str, download: bool, extra_info: dict) -> None:
+            events.append("download")
+            raise DownloadError("HTTP Error 403: Forbidden")
+
+        self.ydl.extract_info.side_effect = fail_download
+        self.sleep.side_effect = lambda seconds: events.append("sleep")
+
+        manager._download_song_if_missing(self._entry("a"))
+
+        # No pause before the first attempt and none after the last one
+        self.assertEqual(
+            events,
+            ["download"]
+            + ["sleep", "download"] * (cache_manager.DOWNLOAD_ATTEMPTS - 1),
+        )
+        self.assertEqual(
+            self.sleep.call_args_list,
+            [call(cache_manager.DOWNLOAD_RETRY_DELAY)]
+            * (cache_manager.DOWNLOAD_ATTEMPTS - 1),
+        )
+
+    def test_download_song_if_missing_successful_download_does_not_pause(self):
+        manager = CacheManager()
+
+        manager._download_song_if_missing(self._entry("a"))
+
+        self.sleep.assert_not_called()
+
+    def test_download_song_if_missing_failed_download_logs_one_line_with_reason(self):
+        manager = CacheManager()
+        url = self._entry("a")["webpage_url"]
+        self.ydl.extract_info.side_effect = DownloadError("HTTP Error 403: Forbidden")
+
+        with self.assertLogs("MusicBot", level=logging.WARNING) as logs:
+            manager._download_song_if_missing(self._entry("a"))
+
+        self.assertEqual(len(logs.records), 1)
+        self._assert_log_line(logs.records[0], url, "HTTP Error 403: Forbidden")
+
+    def test_download_song_if_missing_retry_logs_info_line_with_reason(self):
+        manager = CacheManager()
+        url = self._entry("a")["webpage_url"]
+        self.ydl.extract_info.side_effect = [
+            DownloadError("HTTP Error 403: Forbidden"),
+            None,
+        ]
+
+        with self.assertLogs("MusicBot", level=logging.INFO) as logs:
+            manager._download_song_if_missing(self._entry("a"))
+
+        # A retry that works logs no warning
+        self.assertEqual(len(logs.records), 1)
+        self.assertEqual(logs.records[0].levelno, logging.INFO)
+        self._assert_log_line(logs.records[0], url, "HTTP Error 403: Forbidden")
 
     def _run_in_threads(self, *downloads: Callable[[], Any]) -> list[Any]:
         """Runs the downloads in parallel threads and returns their results."""
@@ -757,8 +947,7 @@ class TestCacheManager(unittest.TestCase):
         manager = CacheManager()
         self.ydl.extract_info.return_value = self._entry("a")
         self.ydl.process_ie_result.side_effect = [
-            DownloadError("failed"),
-            DownloadError("failed"),
+            *[DownloadError("failed")] * cache_manager.DOWNLOAD_ATTEMPTS,
             self._entry("a"),
         ]
         list(manager._fetch_and_cache_new_songs("a"))

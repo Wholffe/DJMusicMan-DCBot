@@ -1,6 +1,7 @@
 import json
 import os
 import threading
+import time
 from collections.abc import Callable, Generator, Iterator, Mapping
 from typing import TYPE_CHECKING, Any, cast
 
@@ -18,8 +19,18 @@ if TYPE_CHECKING:
 
 ProgressHook = Callable[[dict[str, Any]], None]
 
-# YouTube sporadically answers with HTTP 403, a second attempt usually works
+# YouTube sporadically answers with HTTP 403, a retry after a short pause usually works
 DOWNLOAD_ATTEMPTS = 2
+DOWNLOAD_RETRY_DELAY = 3  # seconds
+
+
+def _report_failed_attempt(url: str, attempt: int, error: Exception) -> None:
+    """Logs a failed download attempt and pauses before the retry."""
+    if attempt == DOWNLOAD_ATTEMPTS:
+        logger.warning(f"Failed to download '{url}': {error}")
+        return
+    logger.info(f"Retrying download of '{url}' in {DOWNLOAD_RETRY_DELAY}s: {error}")
+    time.sleep(DOWNLOAD_RETRY_DELAY)
 
 
 def _create_ydl(
@@ -151,11 +162,8 @@ class CacheManager:
                         entry["webpage_url"], download=True, extra_info=extra_info
                     )
                 return filepath
-            except (DownloadError, ExtractorError):
-                if attempt == DOWNLOAD_ATTEMPTS:
-                    logger.warning(
-                        f"Failed to download '{entry['webpage_url']}'", exc_info=True
-                    )
+            except (DownloadError, ExtractorError) as error:
+                _report_failed_attempt(entry["webpage_url"], attempt, error)
         return None
 
     def _download_new_entry(
@@ -172,9 +180,8 @@ class CacheManager:
                 return ydl.process_ie_result(
                     entry, download=True, extra_info=extra_info
                 )
-            except (DownloadError, ExtractorError):
-                if attempt == DOWNLOAD_ATTEMPTS:
-                    logger.warning(f"Failed to download '{url}'", exc_info=True)
+            except (DownloadError, ExtractorError) as error:
+                _report_failed_attempt(url, attempt, error)
         return None
 
     def _fetch_and_cache_new_songs(
@@ -189,8 +196,8 @@ class CacheManager:
                     return
                 # Only resolves the flat playlist pages, nothing is downloaded yet
                 entries = [e for e in info.get("entries", [info]) if e]
-            except (DownloadError, ExtractorError):
-                logger.warning(f"Failed to fetch '{search}'", exc_info=True)
+            except (DownloadError, ExtractorError) as error:
+                logger.warning(f"Failed to fetch '{search}': {error}")
                 return
 
             for index, entry in enumerate(entries, start=1):
